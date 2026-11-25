@@ -44,7 +44,8 @@ function isTask(t: unknown): t is Task {
     [0, 1, 2, 3].includes(x.priority) &&
     [1, 2, 3].includes(x.difficulty) &&
     typeof x.estimate === 'number' &&
-    typeof x.deadline === 'number'
+    typeof x.deadline === 'number' &&
+    (x.dependsOn === undefined || (Array.isArray(x.dependsOn) && x.dependsOn.every((d) => typeof d === 'string')))
   );
 }
 

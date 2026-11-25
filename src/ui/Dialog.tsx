@@ -26,11 +26,16 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
         <D.Overlay className="fixed inset-0 z-40 bg-[rgb(4_4_6/0.62)] backdrop-blur-[2px] animate-fade-in" />
         <D.Content
           className={cn(
-            'fixed left-1/2 top-[14vh] z-50 w-[calc(100vw-32px)] -translate-x-1/2',
+            // Tall content scrolls inside the dialog; children with min-h-0 can keep a fixed footer.
+            'fixed left-1/2 top-[14vh] z-50 flex max-h-[calc(86dvh-16px)] w-[calc(100vw-32px)] -translate-x-1/2 flex-col overflow-y-auto',
             'rounded-md border border-line-strong bg-panel shadow-dialog animate-pop-in focus:outline-none',
             widths[width],
             className,
           )}
+          // Toasts (e.g. "Undo") stay clickable while a dialog is open.
+          onInteractOutside={(e) => {
+            if ((e.target as Element | null)?.closest?.('[data-toaster]')) e.preventDefault();
+          }}
           {...(description ? {} : { 'aria-describedby': undefined })}
         >
           {bare ? (

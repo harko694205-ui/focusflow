@@ -37,11 +37,14 @@ export interface Task {
   createdAt: Instant;
   updatedAt: Instant;
   completedAt: Instant | null;
+  /** Tasks that must be finished before this one can start ("blocked by"). Optional for older records. */
+  dependsOn?: ID[];
 }
 
 /** The user-editable part of a task. */
 export type TaskDraft = Pick<Task, 'title' | 'notes' | 'categoryId' | 'priority' | 'difficulty' | 'estimate' | 'deadline'> & {
   status?: TaskStatus;
+  dependsOn?: ID[];
 };
 
 /**

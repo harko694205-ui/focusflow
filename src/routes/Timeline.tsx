@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
 import { addDays, format, isSameMonth, isSameYear, startOfWeek } from 'date-fns';
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Flag, PanelRight } from 'lucide-react';
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Flag, PanelRight, Sparkles } from 'lucide-react';
 import { isModalOpen, useUI } from '@/app/store';
 import { cn } from '@/lib/cn';
 import { formatClock, formatDuration, minutesNow } from '@/lib/format';
@@ -32,6 +32,8 @@ import { Kbd } from '@/ui/Kbd';
 import { taskActions } from '@/features/tasks/actions';
 import { categoryColor } from '@/features/tasks/TaskMeta';
 import { blockActions } from '@/features/timeline/actions';
+import { scenarioActions } from '@/features/simulator/actions';
+import { useSim } from '@/features/simulator/store';
 import { DayColumn } from '@/features/timeline/DayColumn';
 import { BlockCard, CreateCard, type CardPlacement } from '@/features/timeline/Cards';
 import { DragChip, Tray } from '@/features/timeline/Tray';
@@ -83,6 +85,18 @@ export function TimelinePage() {
   }, [view, anchor]);
   const rangeKey = dayKey(days[0]) + view;
 
+  const routerNavigate = useNavigate();
+  // Auto-schedule never writes to the real timeline directly: it opens the plan as a scenario to review and apply.
+  const autoSchedule = async () => {
+    const t = Date.now();
+    const s = await scenarioActions.create('Auto-schedule · next 2 weeks', [
+      { type: 'autoplan', from: startOfLocalDay(t).getTime(), days: 14, strategy: 'deadline', now: t },
+    ]);
+    if (s) {
+      useSim.getState().set({ scenarioId: s.id, selectedBlockId: null, creating: null, anchor: t, mode: 'edit' });
+      routerNavigate('/simulator');
+    }
+  };
   const navigate = (dir: number) => goTo(addDays(anchor, dir * (view === 'week' ? 7 : 1)).getTime(), dir);
   const goToday = () => goTo(Date.now(), Math.sign(todayStart - startOfLocalDay(anchor).getTime()) || 0);
 
@@ -409,6 +423,11 @@ export function TimelinePage() {
               )}
             </div>
           )}
+          <Tooltip content="Plan all unscheduled work around your commitments — opens as a scenario to review before applying">
+            <Button icon={Sparkles} onClick={() => void autoSchedule()}>
+              Auto-schedule
+            </Button>
+          </Tooltip>
           <SegmentedControl
             size="md"
             value={view}

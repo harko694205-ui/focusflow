@@ -8,6 +8,8 @@ import { activeFilterCount, filterTasks, groupTasks, sortTasks } from '@/domain/
 import { dueBucket } from '@/domain/dates';
 import type { ID, Priority } from '@/domain/types';
 import { useWorkspace } from '@/hooks/data';
+import { openDependencies } from '@/domain/dependencies';
+import { taskRef } from '@/domain/constants';
 import { Button } from '@/ui/Button';
 import { Panel } from '@/ui/Data';
 import { EmptyState } from '@/ui/Feedback';
@@ -20,6 +22,17 @@ import { Page, PageHeader } from './PageHeader';
 
 export function TasksPage() {
   const { tasks, categories, categoryMap, risk, schedule, now, loading } = useWorkspace();
+  // Open tasks still waiting on unfinished dependencies → "FF-3, FF-7".
+  const waiting = useMemo(() => {
+    const byId = new Map(tasks.map((t) => [t.id, t]));
+    const m = new Map<ID, string>();
+    for (const t of tasks) {
+      if (t.status === 'done') continue;
+      const open = openDependencies(t, byId);
+      if (open.length) m.set(t.id, open.map((d) => taskRef(byId.get(d)!.seq)).join(', '));
+    }
+    return m;
+  }, [tasks]);
   const { filter, sort, group, setFilter, clearFacets } = useTaskView();
   const openCreate = useUI((s) => s.openCreate);
   const openEdit = useUI((s) => s.openEdit);
@@ -188,6 +201,7 @@ export function TasksPage() {
           risk={risk}
           schedule={schedule}
           now={now}
+          waiting={waiting}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onOpen={openEdit}

@@ -9,7 +9,7 @@ import { TaskCheckbox } from '@/ui/Feedback';
 import { IconButton } from '@/ui/Button';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuSub, MenuTrigger } from '@/ui/Menu';
 import { MOD } from '@/ui/Kbd';
-import { CategoryLabel, DifficultyDots, DueCell, EstimateLabel, PriorityIcon, ScheduleBadge } from './TaskMeta';
+import { CategoryLabel, DifficultyDots, DueCell, EstimateLabel, PriorityIcon, ScheduleBadge, WaitingBadge } from './TaskMeta';
 import type { TaskSchedule } from '@/domain/schedule';
 import { taskActions } from './actions';
 
@@ -18,6 +18,8 @@ interface TaskRowProps {
   category?: Category;
   risk?: TaskRisk;
   scheduled?: TaskSchedule;
+  /** Refs of unfinished dependencies, e.g. "FF-3, FF-7". */
+  waitingOn?: string;
   now: number;
   selected: boolean;
   onSelect: () => void;
@@ -27,7 +29,7 @@ interface TaskRowProps {
 export const TASK_GRID =
   'grid grid-cols-[16px_16px_minmax(0,1fr)_64px_72px_28px] md:grid-cols-[16px_16px_48px_minmax(0,1fr)_140px_64px_88px_28px] lg:grid-cols-[16px_16px_48px_minmax(0,1fr)_140px_52px_64px_88px_28px] items-center gap-x-3';
 
-export const TaskRow = memo(function TaskRow({ task, category, risk, scheduled, now, selected, onSelect, onOpen }: TaskRowProps) {
+export const TaskRow = memo(function TaskRow({ task, category, risk, scheduled, waitingOn, now, selected, onSelect, onOpen }: TaskRowProps) {
   const done = task.status === 'done';
 
   return (
@@ -81,6 +83,7 @@ export const TaskRow = memo(function TaskRow({ task, category, risk, scheduled, 
           </span>
           {task.notes && <StickyNote size={11} className="shrink-0 text-fg-faint" aria-label="Has notes" />}
           {task.status !== 'done' && <ScheduleBadge task={task} scheduled={scheduled} />}
+          {!done && waitingOn && <WaitingBadge refs={waitingOn} />}
           {task.status === 'in_progress' && (
             <span className="shrink-0 rounded-xs bg-warning-muted px-1 text-2xs font-medium text-warning">In progress</span>
           )}

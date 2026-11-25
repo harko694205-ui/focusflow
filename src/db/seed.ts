@@ -50,6 +50,13 @@ const ROWS: Row[] = [
   ['Phone screen — backend candidate #3', 'cat-hiring', 2, 1, 45, -2, '15:00', 'done'],
 ];
 
+/** [task, tasks it is blocked by] */
+const DEPS: Array<[string, string[]]> = [
+  ['Pricing page — component build', ['Pricing page — wireframes sign-off']],
+  ['Write release notes for v2.4', ['Checkout flow QA pass across breakpoints', 'Pricing page — component build']],
+  ['Q1 roadmap review prep', ['Team capacity model — first draft', 'Collect OKR inputs from leads']],
+];
+
 function at(now: number, dayOffset: number, hhmm: string): number {
   const d = new Date(now);
   d.setDate(d.getDate() + dayOffset);
@@ -79,6 +86,11 @@ export function buildSeed(now: number): { categories: Category[]; tasks: Task[] 
       completedAt: status === 'done' ? Math.min(deadline, now) - 3 * 3_600_000 : null,
     };
   });
+  const byTitle = new Map(tasks.map((t) => [t.title, t.id]));
+  for (const [title, deps] of DEPS) {
+    const t = tasks.find((x) => x.title === title);
+    if (t) t.dependsOn = deps.map((d) => byTitle.get(d)!).filter(Boolean);
+  }
   return { categories, tasks };
 }
 

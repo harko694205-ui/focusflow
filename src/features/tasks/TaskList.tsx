@@ -16,6 +16,8 @@ interface TaskListProps {
   categoryMap: Map<ID, Category>;
   risk: Map<ID, TaskRisk>;
   schedule: Map<ID, TaskSchedule>;
+  /** Refs of unfinished dependencies per task. */
+  waiting?: Map<ID, string>;
   now: number;
   selectedId: ID | null;
   onSelect: (id: ID) => void;
@@ -39,7 +41,7 @@ export function TaskListHeader() {
   );
 }
 
-export function TaskList({ groups, categoryMap, risk, schedule, now, selectedId, onSelect, onOpen, showGroupHeaders }: TaskListProps) {
+export function TaskList({ groups, categoryMap, risk, schedule, waiting, now, selectedId, onSelect, onOpen, showGroupHeaders }: TaskListProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const toggle = (k: string) =>
     setCollapsed((s) => {
@@ -82,6 +84,7 @@ export function TaskList({ groups, categoryMap, risk, schedule, now, selectedId,
                     category={categoryMap.get(t.categoryId)}
                     risk={risk.get(t.id)}
                     scheduled={schedule.get(t.id)}
+                    waitingOn={waiting?.get(t.id)}
                     now={now}
                     selected={t.id === selectedId}
                     onSelect={() => onSelect(t.id)}

@@ -126,11 +126,11 @@ describe('autoplan', () => {
   it('fills free working time, skipping busy time, in deadline order, without overlaps', () => {
     const meeting = block(at(MON, 9), at(MON, 10), { kind: 'event', taskId: null, title: 'Sync' });
     const placed = autoplan({ tasks: [taskB, taskA], blocks: [meeting] }, { from: MON.getTime(), days: 5, strategy: 'deadline', now: NOW, idPrefix: 'p' });
-    // A (due Tue) goes first: 08:30–09:00 is only 30m, then 10:00–11:30 (90m) → 120m total.
+    // A (due Tue, medium) goes first. 08:30–09:00 is too short a window for medium work (≥ 60m),
+    // so A gets one 2h session after the meeting.
     const a = placed.filter((b) => b.taskId === 'a');
     expect(a.map((b) => [minuteOfDay(b.start), minuteOfDay(b.end)])).toEqual([
-      [510, 540],
-      [600, 690],
+      [600, 720],
     ]);
     const total = (id: string) => placed.filter((b) => b.taskId === id).reduce((s, b) => s + (b.end - b.start) / 60_000, 0);
     expect(total('a')).toBe(120);

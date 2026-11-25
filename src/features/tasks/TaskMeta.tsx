@@ -1,6 +1,6 @@
 /** Small, reusable task attribute renderers. Presentational only. */
 import { format } from 'date-fns';
-import { AlertTriangle, CalendarClock, CircleAlert, Clock3 } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CircleAlert, Clock3, Link2 } from 'lucide-react';
 import type { TaskSchedule } from '@/domain/schedule';
 import { cn } from '@/lib/cn';
 import { formatDuration } from '@/lib/format';
@@ -145,6 +145,18 @@ export function ScheduleBadge({ task, scheduled }: { task: Task; scheduled?: Tas
       >
         <CalendarClock size={10} strokeWidth={2} />
         <span className="num">{formatDuration(scheduled.minutes, { compact: true })}</span>
+      </span>
+    </Tooltip>
+  );
+}
+
+/** The task is waiting on unfinished dependencies. */
+export function WaitingBadge({ refs }: { refs: string }) {
+  return (
+    <Tooltip content={<span className="text-2xs">Blocked by {refs}</span>}>
+      <span className="inline-flex shrink-0 items-center gap-0.5 rounded-xs bg-[rgb(255_255_255/0.05)] px-1 text-2xs text-fg-subtle">
+        <Link2 size={10} strokeWidth={2} />
+        <span className="num">{refs.split(', ').length === 1 ? refs : `${refs.split(', ').length} tasks`}</span>
       </span>
     </Tooltip>
   );

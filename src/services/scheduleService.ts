@@ -81,3 +81,17 @@ export async function restoreBlocks(blocks: TimeBlock[]): Promise<void> {
     await db.blocks.bulkPut(blocks.filter((b) => b.kind === 'event' || (b.taskId && existing.has(b.taskId))));
   });
 }
+
+/** Schedule several sessions for one task in a single transaction (accepting a recommendation). */
+export async function scheduleSessions(taskId: ID, spans: Array<{ start: Instant; end: Instant }>): Promise<TimeBlock[]> {
+  for (const s of spans) check(s.start, s.end);
+  return db.transaction('rw', db.tasks, db.blocks, async () => {
+    const task = await db.tasks.get(taskId);
+    if (!task) throw new ScheduleError('Task no longer exists.');
+    if (task.status === 'done') throw new ScheduleError('That task is already done.');
+    const t = now();
+    const blocks: TimeBlock[] = spans.map((s) => ({ id: crypto.randomUUID(), kind: 'task', taskId, title: '', start: s.start, end: s.end, createdAt: t, updatedAt: t }));
+    await db.blocks.bulkAdd(blocks);
+    return blocks;
+  });
+}

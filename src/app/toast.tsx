@@ -47,7 +47,7 @@ export function Toaster() {
   const toasts = useToast((s) => s.toasts);
   const dismiss = useToast((s) => s.dismiss);
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2" aria-live="polite">
+    <div data-toaster className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2" aria-live="polite">
       <AnimatePresence initial={false}>
         {toasts.map((t) => {
           const Icon = icons[t.tone];

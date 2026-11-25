@@ -7,6 +7,7 @@ import { db } from '@/db/db';
 import { buildDemoBlocks, buildSeed } from '@/db/seed';
 import { CATEGORY_COLOR_VALUES, LIMITS } from '@/domain/constants';
 import { isValid, validateDraft } from '@/domain/validation';
+import { validateDependencies } from '@/domain/dependencies';
 import type { Category, CategoryColor, ID, Task, TaskDraft, TaskStatus, TimeBlock } from '@/domain/types';
 
 export class ValidationError extends Error {
@@ -30,6 +31,7 @@ function normalize(d: TaskDraft): TaskDraft {
     title: d.title.trim().replace(/\s+/g, ' '),
     notes: (d.notes ?? '').trim(),
     estimate: Math.round(d.estimate),
+    ...(d.dependsOn ? { dependsOn: [...new Set(d.dependsOn)] } : {}),
   };
 }
 
@@ -37,12 +39,26 @@ function normalize(d: TaskDraft): TaskDraft {
 /* Tasks                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Clean a dependency list: links to tasks that no longer exist are dropped (they can linger
+ * after a delete), self-links and loops are refused. Must run inside a transaction on db.tasks.
+ */
+async function cleanDependencies(id: ID | null, deps: ID[] | undefined): Promise<ID[] | undefined> {
+  if (!deps?.length) return deps;
+  const byId = new Map((await db.tasks.toArray()).map((t) => [t.id, t]));
+  const kept = deps.filter((d) => d === id || byId.has(d));
+  const err = validateDependencies(id, kept, byId);
+  if (err) throw new ValidationError({ dependsOn: err });
+  return kept;
+}
+
 export async function createTask(draft: TaskDraft): Promise<Task> {
   const errors = validateDraft(draft);
   if (!isValid(errors)) throw new ValidationError(errors);
   const d = normalize(draft);
   return db.transaction('rw', db.tasks, db.meta, db.categories, async () => {
     if (!(await db.categories.get(d.categoryId))) throw new ValidationError({ categoryId: 'Category no longer exists.' });
+    d.dependsOn = await cleanDependencies(null, d.dependsOn);
     const t = now();
     const status = d.status ?? 'todo';
     const task: Task = {
@@ -59,6 +75,7 @@ export async function createTask(draft: TaskDraft): Promise<Task> {
       createdAt: t,
       updatedAt: t,
       completedAt: status === 'done' ? t : null,
+      ...(d.dependsOn?.length ? { dependsOn: d.dependsOn } : {}),
     };
     await db.tasks.add(task);
     return task;
@@ -72,6 +89,7 @@ export async function updateTask(id: ID, patch: Partial<TaskDraft>): Promise<{ b
     if (!before) throw new Error('Task not found');
     const merged = normalize({ ...before, ...patch });
     const errors = validateDraft(merged);
+    if (patch.dependsOn) merged.dependsOn = await cleanDependencies(id, merged.dependsOn);
     if (!isValid(errors)) throw new ValidationError(errors);
     const t = now();
     const status = merged.status ?? before.status;
@@ -111,6 +129,7 @@ export async function duplicateTask(id: ID): Promise<Task> {
     estimate: src.estimate,
     deadline: src.deadline,
     status: 'todo',
+    dependsOn: src.dependsOn,
   });
 }
 

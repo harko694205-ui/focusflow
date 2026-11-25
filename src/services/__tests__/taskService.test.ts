@@ -176,3 +176,27 @@ describe('persistence', () => {
     expect(await db.tasks.count()).toBe(1);
   });
 });
+
+describe('dependencies', () => {
+  it('stores dependencies, refuses self-links, missing tasks and loops', async () => {
+    const a = await svc.createTask(draft({ title: 'A' }));
+    const b = await svc.createTask(draft({ title: 'B', dependsOn: [a.id, a.id] }));
+    expect((await db.tasks.get(b.id))!.dependsOn).toEqual([a.id]);
+    const c = await svc.createTask(draft({ title: 'C', dependsOn: ['nope', a.id] }));
+    expect(c.dependsOn).toEqual([a.id]); // links to missing tasks are dropped
+    await expect(svc.updateTask(a.id, { dependsOn: [a.id] })).rejects.toThrow(/itself/);
+    await expect(svc.updateTask(a.id, { dependsOn: [b.id] })).rejects.toThrow(/loop/);
+    expect((await db.tasks.get(a.id))!.dependsOn).toBeUndefined();
+  });
+
+  it('keeps links through duplicate, and delete + undo restores them', async () => {
+    const a = await svc.createTask(draft({ title: 'A' }));
+    const b = await svc.createTask(draft({ title: 'B', dependsOn: [a.id] }));
+    const copy = await svc.duplicateTask(b.id);
+    expect(copy.dependsOn).toEqual([a.id]);
+    const removed = await svc.deleteTasks([a.id]);
+    await svc.restoreTasks(removed.tasks, removed.blocks);
+    expect((await db.tasks.get(b.id))!.dependsOn).toEqual([a.id]);
+    expect(await db.tasks.get(a.id)).toBeTruthy();
+  });
+});

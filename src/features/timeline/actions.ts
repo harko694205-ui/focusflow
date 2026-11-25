@@ -15,6 +15,16 @@ export const blockActions = {
       }),
     ),
 
+  /** Accept a recommendation: several sessions at once, undone together. */
+  scheduleSessions: (taskId: ID, spans: Array<{ start: Instant; end: Instant }>, label: string) =>
+    run(
+      () => svc.scheduleSessions(taskId, spans),
+      (bs) => ({
+        message: bs.length === 1 ? `Scheduled ${label} · ${span(bs[0])}` : `Scheduled ${bs.length} sessions for ${label}`,
+        undo: { label: 'schedule', run: async () => void (await svc.deleteBlocks(bs.map((b) => b.id))) },
+      }),
+    ),
+
   createEvent: (title: string, start: Instant, end: Instant) =>
     run(
       () => svc.createEvent(title, start, end),

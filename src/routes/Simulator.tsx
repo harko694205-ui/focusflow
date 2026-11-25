@@ -57,7 +57,7 @@ function presets(now: number) {
       key: 'autoplan',
       icon: Sparkles,
       title: 'Auto-plan the next two weeks',
-      description: 'Fill free working time with everything not yet scheduled, earliest deadline first.',
+      description: 'Plan everything not yet scheduled around your commitments, weighing deadlines, priority, difficulty and dependencies.',
       name: 'Auto-plan · next 2 weeks',
       ops: [{ type: 'autoplan', from: startOfLocalDay(now).getTime(), days: 14, strategy: 'deadline', now } as ScenarioOp],
     },

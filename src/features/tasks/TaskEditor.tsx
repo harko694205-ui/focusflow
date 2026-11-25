@@ -10,8 +10,10 @@ import { formatDuration } from '@/lib/format';
 import { DIFFICULTIES, PRIORITIES, STATUSES, taskRef } from '@/domain/constants';
 import { combineDateTime, splitDateTime } from '@/domain/dates';
 import { isValid, parseEstimate, validateDraft, type DraftErrors } from '@/domain/validation';
-import type { Difficulty, Priority, Task, TaskDraft, TaskStatus } from '@/domain/types';
-import { useCategories, useTask, useTaskBlocks } from '@/hooks/data';
+import type { Difficulty, ID, Priority, Task, TaskDraft, TaskStatus } from '@/domain/types';
+import { useCategories, useTask, useTaskBlocks, useTasks } from '@/hooks/data';
+import { RecommendationSection } from '@/features/scheduling/Recommendation';
+import { DependencyField } from './DependencyField';
 import { Dialog } from '@/ui/Dialog';
 import { Button, IconButton } from '@/ui/Button';
 import { Field, Input, Textarea } from '@/ui/Input';
@@ -33,9 +35,12 @@ interface FormState {
   date: string;
   time: string;
   status: TaskStatus;
+  dependsOn: ID[];
 }
 
 const NEW_CATEGORY = '__new__';
+
+const liveIds = (ids: ID[], tasks: Task[] | undefined) => ids.filter((id) => tasks?.some((t) => t.id === id));
 
 function defaultDeadline(): number {
   const d = addDays(new Date(), 1);
@@ -55,6 +60,7 @@ function toForm(t: Partial<TaskDraft> & { status?: TaskStatus }, fallbackCategor
     date,
     time,
     status: t.status ?? 'todo',
+    dependsOn: t.dependsOn ?? [],
   };
 }
 
@@ -68,6 +74,7 @@ function toDraft(f: FormState): Partial<TaskDraft> {
     estimate: parseEstimate(f.estimateText) ?? undefined,
     deadline: combineDateTime(f.date, f.time) ?? undefined,
     status: f.status,
+    dependsOn: f.dependsOn,
   };
 }
 
@@ -160,6 +167,7 @@ function EditorForm({
   const [saving, setSaving] = useState(false);
   const [newCat, setNewCat] = useState<string | null>(categories.length === 0 ? '' : null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const allTasks = useTasks();
 
   const draft = toDraft(form);
   const errors: DraftErrors = useMemo(() => {
@@ -171,6 +179,15 @@ function EditorForm({
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const estimate = parseEstimate(form.estimateText);
+  // The recommendation reflects the saved task; flag it while scheduling-relevant fields are edited.
+  const stale =
+    !!task &&
+    (draft.estimate !== task.estimate ||
+      draft.deadline !== task.deadline ||
+      draft.priority !== task.priority ||
+      draft.difficulty !== task.difficulty ||
+      draft.status !== task.status ||
+      liveIds(task.dependsOn ?? [], allTasks).join() !== liveIds(form.dependsOn, allTasks).join());
 
   const submit = async () => {
     setSubmitted(true);
@@ -206,6 +223,7 @@ function EditorForm({
   return (
     <form
       noValidate
+      className="flex min-h-0 flex-col"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
@@ -217,7 +235,7 @@ function EditorForm({
         }
       }}
     >
-      <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-4 py-4">
         {/* Title */}
         <Field label="Title" error={show('title')}>
           {(id) => (
@@ -391,6 +409,14 @@ function EditorForm({
           )}
         </div>
 
+        <DependencyField
+          taskId={task?.id ?? null}
+          value={form.dependsOn}
+          onChange={(ids) => set('dependsOn', ids)}
+          tasks={allTasks ?? []}
+          error={show('dependsOn')}
+        />
+
         <Field label="Notes" error={show('notes')}>
           {(id) => (
             <Textarea
@@ -403,6 +429,7 @@ function EditorForm({
           )}
         </Field>
 
+        {mode === 'edit' && task && <RecommendationSection task={task} stale={stale} />}
         {mode === 'edit' && task && <ScheduleSection task={task} onNavigate={onDone} />}
       </div>
 
