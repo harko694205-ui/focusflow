@@ -3,6 +3,7 @@
  * in this tab or any other tab — so writes from the task service propagate everywhere.
  * `undefined` means "still loading".
  */
+import { normalizeSettings, type FocusSession, type FocusSettings } from '@/domain/focus';
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
@@ -105,4 +106,13 @@ export function useTaskSessions(taskId: ID | null | undefined): WorkSession[] | 
 /** The running focus timer, or null. `undefined` while loading. */
 export function useActiveTimer(): ActiveTimer | null | undefined {
   return useLiveQuery(async () => ((await db.meta.get('activeTimer'))?.value as ActiveTimer | undefined) ?? null, []);
+}
+
+/** The Focus Mode session, or null. `undefined` while loading. */
+export function useFocusSession(): FocusSession | null | undefined {
+  return useLiveQuery(async () => ((await db.meta.get('focusSession'))?.value as FocusSession | undefined) ?? null, []);
+}
+
+export function useFocusSettings(): FocusSettings | undefined {
+  return useLiveQuery(async () => normalizeSettings((await db.meta.get('focusSettings'))?.value as Partial<FocusSettings> | undefined), []);
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { CheckCheck, Database, ListChecks, Plus, SearchX } from 'lucide-react';
 import { isModalOpen, useUI } from '@/app/store';
 import { formatDuration } from '@/lib/format';
@@ -9,6 +9,7 @@ import { dueBucket } from '@/domain/dates';
 import type { ID, Priority } from '@/domain/types';
 import { useWorkspace, useActiveTimer } from '@/hooks/data';
 import { trackingActions } from '@/features/tracking/actions';
+import { focusOn } from '@/features/focus/actions';
 import { openDependencies } from '@/domain/dependencies';
 import { taskRef } from '@/domain/constants';
 import { Button } from '@/ui/Button';
@@ -22,6 +23,7 @@ import { TaskList, TaskListHeader, TaskListSkeleton } from '@/features/tasks/Tas
 import { Page, PageHeader } from './PageHeader';
 
 export function TasksPage() {
+  const navigate = useNavigate();
   const { tasks, categories, categoryMap, risk, schedule, now, loading } = useWorkspace();
   // Open tasks still waiting on unfinished dependencies → "FF-3, FF-7".
   const waiting = useMemo(() => {
@@ -109,6 +111,7 @@ export function TasksPage() {
       enter: withSelected(openEdit),
       e: withSelected(openEdit),
       s: withSelected((id) => void trackingActions.toggle(id)),
+      f: withSelected((id) => void focusOn(id, navigate)),
       x: withSelected((id) => {
         const willHide = filter.status !== 'all';
         if (willHide) setSelectedId(neighbour());

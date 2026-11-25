@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Hourglass, Play, Plus, Square, X } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Crosshair, Hourglass, Play, Plus, Square, X } from 'lucide-react';
+import { useUI } from '@/app/store';
+import { focusOn } from '@/features/focus/actions';
 import { cn } from '@/lib/cn';
 import { formatDuration } from '@/lib/format';
 import { taskRef } from '@/domain/constants';
@@ -17,6 +20,8 @@ import { formatElapsed, useElapsed } from './TimerChip';
 export function TimeSection({ task }: { task: Task }) {
   const sessions = useTaskSessions(task.id);
   const timer = useActiveTimer();
+  const navigate = useNavigate();
+  const closeEditor = useUI((s) => s.closeEditor);
   const running = timer?.taskId === task.id;
   const elapsed = useElapsed(running ? timer!.start : null);
   const [text, setText] = useState('');
@@ -54,6 +59,21 @@ export function TimeSection({ task }: { task: Task }) {
               ) : (
                 'Start timer'
               )}
+            </Button>
+          )}
+          {task.status !== 'done' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Crosshair}
+              onClick={() =>
+                void focusOn(task.id, (to) => {
+                  closeEditor();
+                  navigate(to);
+                })
+              }
+            >
+              Focus mode
             </Button>
           )}
           <div className="ml-auto flex items-center gap-1.5">

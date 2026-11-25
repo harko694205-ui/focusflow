@@ -26,6 +26,7 @@ const sections: Array<{ title: string; items: Array<[keys: string[][], label: st
       [[['E'], ['↵']], 'Edit'],
       [[['X']], 'Complete / reopen'],
       [[['S']], 'Start / stop focus timer'],
+      [[['F']], 'Open in Focus Mode'],
       [[['1'], ['4']], 'Set priority (Urgent → Low)'],
       [[[MOD, 'D']], 'Duplicate'],
       [[['Del']], 'Delete'],

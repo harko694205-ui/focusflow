@@ -16,6 +16,15 @@ export const MAX_SESSION_MS = 10 * 3_600_000;
 
 const now = () => Date.now();
 
+/** Focus Mode's pomodoro session (see focusService). Kept here so task writes can end it. */
+export const FOCUS_KEY = 'focusSession';
+
+/** End the Focus Mode session if it belongs to one of `taskIds`. Inside a transaction with db.meta. */
+export async function dropFocusFor(taskIds: ID[]) {
+  const s = (await db.meta.get(FOCUS_KEY))?.value as { taskId: ID } | undefined;
+  if (s && taskIds.includes(s.taskId)) await db.meta.delete(FOCUS_KEY);
+}
+
 export async function getActiveTimer(): Promise<ActiveTimer | null> {
   return ((await db.meta.get(TIMER_KEY))?.value as ActiveTimer | undefined) ?? null;
 }
@@ -49,6 +58,9 @@ export async function startTimer(taskId: ID, at: Instant = now()) {
     const current = await getActiveTimer();
     if (current?.taskId === taskId) return { timer: current, stopped: null, taskBefore: null as Task | null };
     const stopped = await closeTimer(at);
+    // A plain timer on another task takes over from Focus Mode.
+    const focus = (await db.meta.get(FOCUS_KEY))?.value as { taskId: ID } | undefined;
+    if (focus && focus.taskId !== taskId) await db.meta.delete(FOCUS_KEY);
     const timer: ActiveTimer = { taskId, start: at };
     await db.meta.put({ key: TIMER_KEY, value: timer });
     let taskBefore: Task | null = null;

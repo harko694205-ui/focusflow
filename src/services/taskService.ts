@@ -11,7 +11,7 @@ import { isValid, validateDraft } from '@/domain/validation';
 import { validateDependencies } from '@/domain/dependencies';
 import type { Category, CategoryColor, ID, Task, TaskDraft, TaskStatus, TimeBlock, WorkSession } from '@/domain/types';
 import { startOfLocalDay } from '@/domain/schedule';
-import { closeTimer } from './timeService';
+import { closeTimer, dropFocusFor } from './timeService';
 
 export class ValidationError extends Error {
   constructor(public errors: Record<string, string>) {
@@ -108,7 +108,10 @@ export async function updateTask(id: ID, patch: Partial<TaskDraft>): Promise<{ b
     };
     await db.tasks.put(after);
     // Finishing a task stops its focus timer and keeps the time.
-    if (status === 'done' && before.status !== 'done') await closeTimer(t, id);
+    if (status === 'done' && before.status !== 'done') {
+      await closeTimer(t, id);
+      await dropFocusFor([id]);
+    }
     return { before, after };
   });
 }
@@ -151,6 +154,7 @@ export async function deleteTasks(ids: ID[]): Promise<{ tasks: Task[]; blocks: T
     const blocks = await db.blocks.where('taskId').anyOf(ids).toArray();
     const sessions = await db.sessions.where('taskId').anyOf(ids).toArray();
     for (const id of ids) await closeTimer(now(), id);
+    await dropFocusFor(ids);
     await db.blocks.bulkDelete(blocks.map((b) => b.id));
     await db.sessions.bulkDelete(sessions.map((s) => s.id));
     // A timer that was just stopped may have added a session for a deleted task.
@@ -206,6 +210,7 @@ export async function clearTasks(): Promise<void> {
     await db.blocks.clear();
     await db.sessions.clear();
     await db.meta.delete('activeTimer');
+    await db.meta.delete('focusSession');
     await db.meta.put({ key: 'taskSeq', value: 0 });
   });
 }
@@ -221,6 +226,7 @@ export async function loadDemoData(): Promise<void> {
     await db.blocks.clear();
     await db.sessions.clear();
     await db.meta.delete('activeTimer');
+    await db.meta.delete('focusSession');
     await db.categories.bulkPut(categories);
     await db.tasks.bulkAdd([...tasks, ...history.tasks]);
     await db.blocks.bulkAdd([...blocks, ...history.blocks]);

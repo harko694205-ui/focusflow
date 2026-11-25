@@ -4,6 +4,7 @@ import type { ID, Minutes, WorkSession } from '@/domain/types';
 import { formatDuration } from '@/lib/format';
 import * as svc from '@/services/timeService';
 import { restoreTasks } from '@/services/taskService';
+import { getFocus, pauseFocus, toggleFocus } from '@/services/focusService';
 
 const mins = (s: WorkSession) => Math.round((s.end - s.start) / 60_000);
 
@@ -23,7 +24,13 @@ export const trackingActions = {
       }),
     ),
 
-  stop: () =>
+  /** Stop the timer. During a Focus Mode session this pauses the session instead. */
+  stop: async () => {
+    if (await getFocus()) return run(() => pauseFocus(), () => ({ message: 'Focus session paused' }));
+    return trackingActions.stopTimer();
+  },
+
+  stopTimer: () =>
     run(
       () => svc.stopTimer(),
       (r) => {
@@ -37,6 +44,8 @@ export const trackingActions = {
 
   /** Start, or stop if this task's timer is running. */
   toggle: async (taskId: ID) => {
+    const focus = await getFocus();
+    if (focus?.taskId === taskId) return run(() => toggleFocus(), () => null);
     const active = await svc.getActiveTimer();
     return active?.taskId === taskId ? trackingActions.stop() : trackingActions.start(taskId);
   },

@@ -13,19 +13,28 @@ import { TasksPage } from './routes/Tasks';
 import { TimelinePage } from './routes/Timeline';
 import { SimulatorPage } from './routes/Simulator';
 import { InsightsPage } from './routes/Insights';
+import { FocusPage } from './routes/Focus';
+import { Root } from './app/Root';
 
 const router = createBrowserRouter([
   {
-    path: '/',
-    element: <AppShell />,
+    element: <Root />,
     children: [
-      { index: true, element: <CommandCenter /> },
-      { path: 'timeline', element: <TimelinePage /> },
-      { path: 'tasks', element: <TasksPage /> },
-      { path: 'simulator', element: <SimulatorPage /> },
-      { path: 'insights', element: <InsightsPage /> },
-      { path: 'settings', element: <PlaceholderPage page="settings" /> },
-      { path: 'design', element: <DesignSystem /> },
+      {
+        path: '/',
+        element: <AppShell />,
+        children: [
+          { index: true, element: <CommandCenter /> },
+          { path: 'timeline', element: <TimelinePage /> },
+          { path: 'tasks', element: <TasksPage /> },
+          { path: 'simulator', element: <SimulatorPage /> },
+          { path: 'insights', element: <InsightsPage /> },
+          { path: 'settings', element: <PlaceholderPage page="settings" /> },
+          { path: 'design', element: <DesignSystem /> },
+        ],
+      },
+      // Full-screen, outside the app shell.
+      { path: 'focus', element: <FocusPage /> },
     ],
   },
 ]);

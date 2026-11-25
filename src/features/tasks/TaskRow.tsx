@@ -1,7 +1,9 @@
 import { memo } from 'react';
 import { motion } from 'motion/react';
-import { Check, Copy, MoreHorizontal, Pencil, Play, RotateCcw, Signal, Square, StickyNote, Trash2, Timer } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Check, Copy, Crosshair, MoreHorizontal, Pencil, Play, RotateCcw, Signal, Square, StickyNote, Trash2, Timer } from 'lucide-react';
 import { trackingActions } from '@/features/tracking/actions';
+import { focusOn } from '@/features/focus/actions';
 import { cn } from '@/lib/cn';
 import { PRIORITIES, PRIORITY_VALUES, taskRef } from '@/domain/constants';
 import type { TaskRisk } from '@/domain/risk';
@@ -34,6 +36,7 @@ export const TASK_GRID =
 
 export const TaskRow = memo(function TaskRow({ task, category, risk, scheduled, waitingOn, timing, now, selected, onSelect, onOpen }: TaskRowProps) {
   const done = task.status === 'done';
+  const navigate = useNavigate();
 
   return (
     <motion.div
@@ -127,6 +130,11 @@ export const TaskRow = memo(function TaskRow({ task, category, risk, scheduled, 
             {!done && (
               <MenuItem icon={timing ? Square : Play} shortcut={['S']} onSelect={() => void trackingActions.toggle(task.id)}>
                 {timing ? 'Stop focus timer' : 'Start focus timer'}
+              </MenuItem>
+            )}
+            {!done && (
+              <MenuItem icon={Crosshair} shortcut={['F']} onSelect={() => void focusOn(task.id, navigate)}>
+                Open in Focus Mode
               </MenuItem>
             )}
             {!done && (

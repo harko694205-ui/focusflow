@@ -106,6 +106,7 @@ export async function importWorkspace(json: string): Promise<number> {
     await db.blocks.clear();
     await db.sessions.clear();
     await db.meta.delete('activeTimer');
+    await db.meta.delete('focusSession');
     await db.categories.bulkAdd(data.categories);
     await db.tasks.bulkAdd(tasks);
     await db.blocks.bulkAdd(blocks);
