@@ -33,6 +33,7 @@ const router = createBrowserRouter([
           { path: 'tasks', lazy: page(() => import('./routes/Tasks'), (m) => m.TasksPage) },
           { path: 'simulator', lazy: page(() => import('./routes/Simulator'), (m) => m.SimulatorPage) },
           { path: 'insights', lazy: page(() => import('./routes/Insights'), (m) => m.InsightsPage) },
+          { path: 'exams', lazy: page(() => import('./routes/Exams'), (m) => m.ExamsPage) },
           { path: 'settings', lazy: page(() => import('./routes/Settings'), (m) => m.SettingsPage) },
           { path: 'design', lazy: page(() => import('./routes/DesignSystem'), (m) => m.DesignSystem) },
           { path: '*', element: <NotFound /> },

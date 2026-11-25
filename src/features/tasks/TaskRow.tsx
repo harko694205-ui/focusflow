@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router';
-import { Check, Copy, Crosshair, MoreHorizontal, Pencil, Play, RotateCcw, Signal, Square, StickyNote, Trash2, Timer } from 'lucide-react';
+import { Check, Copy, Crosshair, GraduationCap, MoreHorizontal, Pencil, Play, RotateCcw, Signal, Square, StickyNote, Trash2, Timer } from 'lucide-react';
 import { trackingActions } from '@/features/tracking/actions';
 import { focusOn } from '@/features/focus/actions';
 import { cn } from '@/lib/cn';
@@ -94,6 +94,7 @@ export const TaskRow = memo(function TaskRow({ task, category, risk, scheduled, 
             </span>
           )}
           {task.notes && <StickyNote size={11} className="shrink-0 text-fg-faint" aria-label="Has notes" />}
+          {task.examId && <GraduationCap size={11} className="shrink-0 text-fg-subtle" aria-label="Exam study session" />}
           {task.status !== 'done' && <ScheduleBadge task={task} scheduled={scheduled} />}
           {!done && waitingOn && <WaitingBadge refs={waitingOn} />}
           {task.status === 'in_progress' && (

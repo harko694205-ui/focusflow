@@ -79,6 +79,7 @@ export async function createTask(draft: TaskDraft): Promise<Task> {
       updatedAt: t,
       completedAt: status === 'done' ? t : null,
       ...(d.dependsOn?.length ? { dependsOn: d.dependsOn } : {}),
+      ...(d.examId ? { examId: d.examId } : {}),
     };
     await db.tasks.add(task);
     return task;
@@ -258,10 +259,11 @@ export async function restoreCategoryEdit(before: Category): Promise<void> {
 
 /** Remove all tasks and the schedule (categories are kept so the user can start fresh). */
 export async function clearTasks(): Promise<void> {
-  await db.transaction('rw', db.tasks, db.blocks, db.sessions, db.meta, async () => {
+  await db.transaction('rw', [db.tasks, db.blocks, db.sessions, db.meta, db.exams], async () => {
     await db.tasks.clear();
     await db.blocks.clear();
     await db.sessions.clear();
+    await db.exams.clear();
     await db.meta.delete('activeTimer');
     await db.meta.delete('focusSession');
     await db.meta.put({ key: 'taskSeq', value: 0 });
@@ -274,10 +276,11 @@ export async function loadDemoData(): Promise<void> {
   const { categories, tasks } = buildSeed(t);
   const blocks = buildDemoBlocks(tasks, t);
   const history = buildDemoHistory(t, tasks.length, categories.map((c) => c.id));
-  await db.transaction('rw', db.tasks, db.categories, db.blocks, db.sessions, db.meta, async () => {
+  await db.transaction('rw', [db.tasks, db.categories, db.blocks, db.sessions, db.meta, db.exams], async () => {
     await db.tasks.clear();
     await db.blocks.clear();
     await db.sessions.clear();
+    await db.exams.clear();
     await db.meta.delete('activeTimer');
     await db.meta.delete('focusSession');
     await db.categories.bulkPut(categories);

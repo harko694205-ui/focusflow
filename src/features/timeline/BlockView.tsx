@@ -51,7 +51,8 @@ export const BlockView = memo(function BlockView({
   const isEvent = block.kind === 'event';
   const done = task?.status === 'done';
   const conflict = layout.overlaps.length > 0;
-  const color = isEvent ? 'var(--color-fg-faint)' : categoryColor(category);
+  // Exams stand out in amber; other events stay neutral.
+  const color = isEvent ? (block.examId ? 'var(--color-warning)' : 'var(--color-fg-faint)') : categoryColor(category);
   const title = isEvent ? block.title : (task?.title ?? 'Deleted task');
   const compact = minutes < 45;
   const tiny = minutes < 30;

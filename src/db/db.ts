@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Category, Task, TimeBlock, WorkSession } from '@/domain/types';
+import type { Category, Exam, Task, TimeBlock, WorkSession } from '@/domain/types';
 import type { Scenario } from '@/engine/types';
 import { buildDemoBlocks, buildSeed } from './seed';
 import { buildDemoHistory, buildDemoTracking } from './history';
@@ -15,6 +15,7 @@ export class FocusFlowDB extends Dexie {
   blocks!: EntityTable<TimeBlock, 'id'>;
   scenarios!: EntityTable<Scenario, 'id'>;
   sessions!: EntityTable<WorkSession, 'id'>;
+  exams!: EntityTable<Exam, 'id'>;
   meta!: EntityTable<MetaRow, 'key'>;
 
   /** When false, a freshly created database starts empty (used by tests). */
@@ -44,6 +45,13 @@ export class FocusFlowDB extends Dexie {
 
     // v4 — time tracking: work sessions (focus timer / logged time) for Insights.
     this.version(4).stores({ sessions: 'id, taskId, start' });
+
+    // v5 — exam prep: exams, and the exam link on study-session tasks and exam event blocks.
+    this.version(5).stores({
+      exams: 'id, start, categoryId',
+      tasks: 'id, &seq, status, categoryId, deadline, priority, updatedAt, examId',
+      blocks: 'id, taskId, start, end, examId',
+    });
 
     // Runs exactly once, when the database is first created in this browser.
     this.on('populate', async (tx) => {

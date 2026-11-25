@@ -8,7 +8,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { computeRisk, type TaskRisk } from '@/domain/risk';
 import { scheduleByTask } from '@/domain/schedule';
-import type { ActiveTimer, Category, ID, Task, TimeBlock, WorkSession } from '@/domain/types';
+import type { ActiveTimer, Category, Exam, ID, Task, TimeBlock, WorkSession } from '@/domain/types';
 import { DEFAULT_WORK_WEEK, type WorkWeek } from '@/domain/constants';
 import { normalizeSettings, type FocusSession, type FocusSettings } from '@/domain/focus';
 import { readWorkWeek } from '@/domain/workweek';
@@ -146,4 +146,9 @@ export function useProfile(): Profile {
 export function useTerms(): Terms {
   const mode = useProfile().mode;
   return useMemo(() => termsFor(mode), [mode]);
+}
+
+/** All exams, soonest first. `undefined` while loading. */
+export function useExams(): Exam[] | undefined {
+  return useLiveQuery(() => db.exams.orderBy('start').toArray(), []);
 }

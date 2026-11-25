@@ -5,7 +5,7 @@ import { ChevronDown, Download, GitBranch, HardDrive, Plus, Settings2, Upload, W
 import { cn } from '@/lib/cn';
 import { formatDuration } from '@/lib/format';
 import { categoryStats, summarize } from '@/domain/stats';
-import { useTerms, useWorkspace } from '@/hooks/data';
+import { useExams, useProfile, useTerms, useWorkspace } from '@/hooks/data';
 import { settingsActions } from '@/features/settings/actions';
 import { CategorySwatch } from '@/features/tasks/TaskMeta';
 import { NAV } from './nav';
@@ -25,6 +25,8 @@ export function Logo({ size = 20 }: { size?: number }) {
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const terms = useTerms();
+  const mode = useProfile().mode;
+  const exams = useExams();
   const openCreate = useUI((s) => s.openCreate);
   const setMobileNav = useUI((s) => s.setMobileNav);
   const navigate = useNavigate();
@@ -41,6 +43,8 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const badges: Record<string, number | undefined> = {
     '/tasks': loading ? undefined : summary.openCount,
     '/simulator': drafts.length || undefined,
+    // Exams in the next two weeks.
+    '/exams': (exams ?? []).filter((e) => e.start > now && e.start - now < 14 * 86_400_000).length || undefined,
   };
 
   return (
@@ -111,7 +115,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
 
       {/* Primary nav */}
       <ul className={cn('flex shrink-0 flex-col gap-px', collapsed ? 'items-center' : 'px-2.5')}>
-        {NAV.map((item) => {
+        {NAV.filter((item) => !item.studentOnly || mode === 'student').map((item) => {
           const active = item.to === '/' ? pathname === '/' : pathname.startsWith(item.to);
           const badge = badges[item.to];
           return (

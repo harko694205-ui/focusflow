@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn';
 import { Dialog } from '@/ui/Dialog';
 import { Kbd, MOD } from '@/ui/Kbd';
 import { taskRef } from '@/domain/constants';
-import { useTasks, useCategories, useCategoryMap } from '@/hooks/data';
+import { useTasks, useCategories, useCategoryMap, useProfile } from '@/hooks/data';
 import { categoryColor } from '@/features/tasks/TaskMeta';
 import { undoLast } from '@/features/tasks/actions';
 import { NAV } from './nav';
@@ -38,10 +38,11 @@ export function CommandPalette() {
   const tasks = useTasks();
   const categoryMap = useCategoryMap(useCategories());
   const canInstall = usePwa((s) => s.canInstall);
+  const mode = useProfile().mode;
 
   const commands = useMemo<Command[]>(
     () => [
-      ...NAV.map((n) => ({
+      ...NAV.filter((n) => !n.studentOnly || mode === 'student').map((n) => ({
         id: `nav-${n.to}`,
         group: 'Navigate' as const,
         label: n.label,
@@ -69,7 +70,7 @@ export function CommandPalette() {
           run: () => openEdit(t.id),
         })),
     ],
-    [navigate, openCreate, openEdit, setShortcuts, toggleSidebar, tasks, categoryMap, canInstall],
+    [navigate, openCreate, openEdit, setShortcuts, toggleSidebar, tasks, categoryMap, canInstall, mode],
   );
 
   const results = useMemo(() => {
