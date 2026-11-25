@@ -273,7 +273,7 @@ describe('backup v4', () => {
     await setWorkWeek(week);
     await updateFocusSettings({ focus: 50 });
     const backup = await buildBackup();
-    expect(backup.version).toBe(5);
+    expect(backup.version).toBe(6);
 
     await db.scenarios.clear();
     await setWorkWeek(DEFAULT_WORK_WEEK);

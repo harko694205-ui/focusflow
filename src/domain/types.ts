@@ -74,6 +74,10 @@ export interface TimeBlock {
   updatedAt: Instant;
   /** Set on the event block that shows an exam on the timeline. */
   examId?: ID;
+  /** Set on the event blocks generated from a recurring class. */
+  classId?: ID;
+  /** Course of a class event (its colour on the timeline). */
+  categoryId?: ID;
 }
 
 export type CategoryColor = 'iris' | 'teal' | 'amber' | 'rose' | 'sky' | 'lime' | 'violet' | 'slate';
@@ -127,3 +131,25 @@ export interface Exam {
 }
 
 export type ExamDraft = Pick<Exam, 'title' | 'categoryId' | 'start' | 'duration' | 'location' | 'prepTarget' | 'topics' | 'notes'>;
+
+/**
+ * A weekly class meeting (lecture, discussion, lab…). Its meetings for the term are generated
+ * as event blocks on the timeline, so scheduling works around them like any other commitment.
+ */
+export interface ClassMeeting {
+  id: ID;
+  /** The course. */
+  categoryId: ID;
+  /** "Lecture", "Discussion", "Lab"… */
+  kind: string;
+  /** Weekdays it meets, 0 = Sunday … 6 = Saturday. */
+  days: number[];
+  /** Minutes from local midnight. */
+  start: Minutes;
+  end: Minutes;
+  location: string;
+  createdAt: Instant;
+  updatedAt: Instant;
+}
+
+export type ClassDraft = Pick<ClassMeeting, 'categoryId' | 'kind' | 'days' | 'start' | 'end' | 'location'>;

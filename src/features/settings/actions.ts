@@ -6,6 +6,7 @@ import type { Profile } from '@/domain/profile';
 import { weeklyMinutes } from '@/domain/workweek';
 import { formatDuration } from '@/lib/format';
 import * as settings from '@/services/settingsService';
+import * as classes from '@/services/classService';
 import * as tasks from '@/services/taskService';
 import { exportWorkspace, importWorkspace } from '@/services/backup';
 
@@ -37,9 +38,9 @@ export const settingsActions = {
   deleteCategory: (id: ID, moveTo?: ID) =>
     run(
       () => tasks.deleteCategory(id, moveTo),
-      ({ category, moved }) => ({
-        message: moved.length ? `Deleted ${category.name} · ${moved.length} task${moved.length === 1 ? '' : 's'} moved` : `Deleted ${category.name}`,
-        undo: { label: 'delete category', run: () => tasks.restoreCategory(category, moved) },
+      ({ category, moved, movedClasses, classBlocks }) => ({
+        message: moved.length || movedClasses.length ? `Deleted ${category.name} · ${[moved.length && `${moved.length} task${moved.length === 1 ? '' : 's'}`, movedClasses.length && `${movedClasses.length} class${movedClasses.length === 1 ? '' : 'es'}`].filter(Boolean).join(' and ')} moved` : `Deleted ${category.name}`,
+        undo: { label: 'delete category', run: () => tasks.restoreCategory(category, moved, movedClasses, classBlocks) },
       }),
     ),
 
@@ -57,7 +58,21 @@ export const settingsActions = {
 export const profileActions = {
   update: (patch: Partial<Profile>, message = '') =>
     run(
-      () => settings.setProfile(patch),
-      ({ before }) => ({ message, undo: { label: 'profile change', run: () => settings.restoreProfile(before) } }),
+      async () => {
+        const r = await settings.setProfile(patch);
+        // Class meetings follow the term (dates, length, holidays).
+        if (JSON.stringify(r.before?.term ?? null) !== JSON.stringify(r.after.term)) await classes.regenerateAll();
+        return r;
+      },
+      ({ before }) => ({
+        message,
+        undo: {
+          label: 'profile change',
+          run: async () => {
+            await settings.restoreProfile(before);
+            await classes.regenerateAll();
+          },
+        },
+      }),
     ),
 };

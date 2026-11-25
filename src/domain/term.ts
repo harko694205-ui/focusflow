@@ -17,6 +17,8 @@ export interface Term {
   weeks: number;
   /** A finals week follows the last instruction week. */
   finals: boolean;
+  /** Days with no classes (holidays), yyyy-MM-dd. */
+  holidays?: string[];
 }
 
 export type TermPhase = 'before' | 'instruction' | 'finals' | 'after';
@@ -44,7 +46,8 @@ export function isValidTerm(t: Partial<Term> | null | undefined): t is Term {
     Number.isInteger(t.weeks) &&
     t.weeks >= 1 &&
     t.weeks <= 20 &&
-    typeof t.finals === 'boolean'
+    typeof t.finals === 'boolean' &&
+    (t.holidays === undefined || (Array.isArray(t.holidays) && t.holidays.every((h) => typeof h === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(h))))
   );
 }
 

@@ -143,7 +143,7 @@ export const DayColumn = memo(function DayColumn(p: DayColumnProps) {
             key={b.id}
             block={b}
             task={task}
-            category={task ? p.categoryMap.get(task.categoryId) : undefined}
+            category={task ? p.categoryMap.get(task.categoryId) : b.categoryId ? p.categoryMap.get(b.categoryId) : undefined}
             layout={layout.get(b.id) ?? { lane: 0, lanes: 1, overlaps: [] }}
             selected={p.selectedId === b.id}
             ghosted={!!drag?.moved && drag.blockId === b.id}

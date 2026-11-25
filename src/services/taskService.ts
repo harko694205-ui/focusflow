@@ -9,7 +9,7 @@ import { buildDemoHistory, buildDemoTracking } from '@/db/history';
 import { CATEGORY_COLOR_VALUES, LIMITS } from '@/domain/constants';
 import { isValid, validateDraft } from '@/domain/validation';
 import { validateDependencies } from '@/domain/dependencies';
-import type { Category, CategoryColor, ID, Task, TaskDraft, TaskStatus, TimeBlock, WorkSession } from '@/domain/types';
+import type { Category, CategoryColor, ClassMeeting, ID, Task, TaskDraft, TaskStatus, TimeBlock, WorkSession } from '@/domain/types';
 import { startOfLocalDay } from '@/domain/schedule';
 import { closeTimer, dropFocusFor } from './timeService';
 
@@ -200,8 +200,18 @@ export async function createCategory(name: string, color?: CategoryColor): Promi
   });
 }
 
+/**
+ * Class meetings are titled "<course> <kind>"; keep them in step with the course name.
+ * Inside a transaction that includes db.blocks.
+ */
+async function retitleClassBlocks(categoryId: ID, oldName: string, newName: string) {
+  if (oldName === newName) return;
+  const blocks = (await db.blocks.where('classId').above('').toArray()).filter((b) => b.categoryId === categoryId && b.title.startsWith(oldName));
+  await db.blocks.bulkPut(blocks.map((b) => ({ ...b, title: newName + b.title.slice(oldName.length) })));
+}
+
 export async function updateCategory(id: ID, patch: { name?: string; color?: CategoryColor }): Promise<{ before: Category; after: Category }> {
-  return db.transaction('rw', db.categories, async () => {
+  return db.transaction('rw', db.categories, db.blocks, async () => {
     const before = await db.categories.get(id);
     if (!before) throw new Error('Category not found');
     let name = before.name;
@@ -215,6 +225,7 @@ export async function updateCategory(id: ID, patch: { name?: string; color?: Cat
     if (patch.color !== undefined && !CATEGORY_COLOR_VALUES.includes(patch.color)) throw new Error('Unknown color');
     const after: Category = { ...before, name, color: patch.color ?? before.color };
     await db.categories.put(after);
+    await retitleClassBlocks(id, before.name, name);
     return { before, after };
   });
 }
@@ -223,26 +234,37 @@ export async function updateCategory(id: ID, patch: { name?: string; color?: Cat
  * Delete a category. Its tasks (if any) move to `moveTo`, which is required then.
  * Returns what changed so the deletion can be undone exactly.
  */
-export async function deleteCategory(id: ID, moveTo?: ID): Promise<{ category: Category; moved: Task[] }> {
-  return db.transaction('rw', db.categories, db.tasks, async () => {
+export async function deleteCategory(
+  id: ID,
+  moveTo?: ID,
+): Promise<{ category: Category; moved: Task[]; movedClasses: ClassMeeting[]; classBlocks: TimeBlock[] }> {
+  return db.transaction('rw', [db.categories, db.tasks, db.classes, db.blocks], async () => {
     const category = await db.categories.get(id);
     if (!category) throw new Error('Category not found');
     if ((await db.categories.count()) <= 1) throw new Error('Keep at least one category.');
     const moved = await db.tasks.where('categoryId').equals(id).toArray();
-    if (moved.length) {
-      if (!moveTo || moveTo === id || !(await db.categories.get(moveTo))) throw new Error('Choose where its tasks should go.');
+    const movedClasses = await db.classes.where('categoryId').equals(id).toArray();
+    const classBlocks = (await db.blocks.where('classId').above('').toArray()).filter((b) => b.categoryId === id);
+    if (moved.length || movedClasses.length) {
+      const target = moveTo && moveTo !== id ? await db.categories.get(moveTo) : undefined;
+      if (!target) throw new Error('Choose where its tasks and classes should go.');
       const t = now();
-      await db.tasks.bulkPut(moved.map((x) => ({ ...x, categoryId: moveTo, updatedAt: t })));
+      await db.tasks.bulkPut(moved.map((x) => ({ ...x, categoryId: target.id, updatedAt: t })));
+      await db.classes.bulkPut(movedClasses.map((c) => ({ ...c, categoryId: target.id, updatedAt: t })));
+      await db.blocks.bulkPut(classBlocks.map((b) => ({ ...b, categoryId: target.id })));
+      await retitleClassBlocks(target.id, category.name, target.name);
     }
     await db.categories.delete(id);
-    return { category, moved };
+    return { category, moved, movedClasses, classBlocks };
   });
 }
 
 /** Undo deleteCategory: the category comes back and its tasks return to it. */
-export async function restoreCategory(category: Category, moved: Task[]): Promise<void> {
-  await db.transaction('rw', db.categories, db.tasks, async () => {
+export async function restoreCategory(category: Category, moved: Task[], movedClasses: ClassMeeting[] = [], classBlocks: TimeBlock[] = []): Promise<void> {
+  await db.transaction('rw', [db.categories, db.tasks, db.classes, db.blocks], async () => {
     await db.categories.put(category);
+    await db.classes.bulkPut(movedClasses);
+    await db.blocks.bulkPut(classBlocks);
     const still = (await db.tasks.bulkGet(moved.map((t) => t.id))).filter((t): t is Task => !!t);
     const byId = new Map(moved.map((t) => [t.id, t]));
     await db.tasks.bulkPut(still.map((t) => ({ ...t, categoryId: category.id, updatedAt: byId.get(t.id)!.updatedAt })));
@@ -250,7 +272,11 @@ export async function restoreCategory(category: Category, moved: Task[]): Promis
 }
 
 export async function restoreCategoryEdit(before: Category): Promise<void> {
-  await db.categories.put(before);
+  await db.transaction('rw', db.categories, db.blocks, async () => {
+    const current = await db.categories.get(before.id);
+    await db.categories.put(before);
+    if (current) await retitleClassBlocks(before.id, current.name, before.name);
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -261,7 +287,8 @@ export async function restoreCategoryEdit(before: Category): Promise<void> {
 export async function clearTasks(): Promise<void> {
   await db.transaction('rw', [db.tasks, db.blocks, db.sessions, db.meta, db.exams], async () => {
     await db.tasks.clear();
-    await db.blocks.clear();
+    // Your class schedule stays; everything else on the timeline goes.
+    await db.blocks.filter((b) => !b.classId).delete();
     await db.sessions.clear();
     await db.exams.clear();
     await db.meta.delete('activeTimer');
@@ -276,11 +303,12 @@ export async function loadDemoData(): Promise<void> {
   const { categories, tasks } = buildSeed(t);
   const blocks = buildDemoBlocks(tasks, t);
   const history = buildDemoHistory(t, tasks.length, categories.map((c) => c.id));
-  await db.transaction('rw', [db.tasks, db.categories, db.blocks, db.sessions, db.meta, db.exams], async () => {
+  await db.transaction('rw', [db.tasks, db.categories, db.blocks, db.sessions, db.meta, db.exams, db.classes], async () => {
     await db.tasks.clear();
     await db.blocks.clear();
     await db.sessions.clear();
     await db.exams.clear();
+    await db.classes.clear();
     await db.meta.delete('activeTimer');
     await db.meta.delete('focusSession');
     await db.categories.bulkPut(categories);

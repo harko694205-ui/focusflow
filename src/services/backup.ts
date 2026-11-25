@@ -1,5 +1,5 @@
 import { db } from '@/db/db';
-import type { Category, Exam, Task, TimeBlock, WorkSession } from '@/domain/types';
+import type { Category, ClassMeeting, Exam, Task, TimeBlock, WorkSession } from '@/domain/types';
 import type { WorkWeek } from '@/domain/constants';
 import type { Scenario } from '@/engine/types';
 import { normalizeSettings, type FocusSettings } from '@/domain/focus';
@@ -14,8 +14,9 @@ const FORMAT = 'focusflow-backup';
  * v1: tasks + categories. v2: adds time blocks. v3: adds work sessions (time tracking).
  * v4: adds simulator scenarios and preferences (working hours, Focus Mode settings, profile).
  * v5: adds exams (exam prep planner).
+ * v6: adds recurring classes (their meetings travel as event blocks).
  */
-const VERSION = 5;
+const VERSION = 6;
 
 interface Preferences {
   workWeek?: WorkWeek;
@@ -33,17 +34,19 @@ interface Backup {
   sessions?: WorkSession[];
   scenarios?: Scenario[];
   exams?: Exam[];
+  classes?: ClassMeeting[];
   preferences?: Preferences;
 }
 
 export async function buildBackup(): Promise<Backup> {
-  const [categories, tasks, blocks, sessions, scenarios, exams, workWeek, focusSettings, profile] = await Promise.all([
+  const [categories, tasks, blocks, sessions, scenarios, exams, classes, workWeek, focusSettings, profile] = await Promise.all([
     db.categories.toArray(),
     db.tasks.toArray(),
     db.blocks.toArray(),
     db.sessions.toArray(),
     db.scenarios.toArray(),
     db.exams.toArray(),
+    db.classes.toArray(),
     db.meta.get(WORK_WEEK_KEY),
     db.meta.get(FOCUS_SETTINGS_KEY),
     db.meta.get(PROFILE_KEY),
@@ -53,7 +56,7 @@ export async function buildBackup(): Promise<Backup> {
     ...(focusSettings ? { focusSettings: focusSettings.value as FocusSettings } : {}),
     ...(profile ? { profile: profile.value as Profile } : {}),
   };
-  return { format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), categories, tasks, blocks, sessions, scenarios, exams, preferences };
+  return { format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), categories, tasks, blocks, sessions, scenarios, exams, classes, preferences };
 }
 
 /** Download the workspace as JSON. Returns the number of tasks exported. */
@@ -109,6 +112,21 @@ function isSession(s: unknown): s is WorkSession {
   return !!x && typeof x.id === 'string' && typeof x.taskId === 'string' && typeof x.start === 'number' && typeof x.end === 'number' && x.end > x.start;
 }
 
+function isClass(c: unknown): c is ClassMeeting {
+  const x = c as ClassMeeting;
+  return (
+    !!x &&
+    typeof x.id === 'string' &&
+    typeof x.categoryId === 'string' &&
+    typeof x.kind === 'string' &&
+    Array.isArray(x.days) &&
+    x.days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6) &&
+    typeof x.start === 'number' &&
+    typeof x.end === 'number' &&
+    x.end > x.start
+  );
+}
+
 function isExam(e: unknown): e is Exam {
   const x = e as Exam;
   return (
@@ -160,6 +178,8 @@ export async function importWorkspace(json: string): Promise<number> {
   const scenarios = data.scenarios ?? [];
   const exams = data.exams ?? [];
   if (!Array.isArray(exams) || !exams.every(isExam)) throw new Error('Backup contains malformed exams.');
+  const classes = data.classes ?? [];
+  if (!Array.isArray(classes) || !classes.every(isClass)) throw new Error('Backup contains malformed classes.');
   if (!Array.isArray(scenarios) || !scenarios.every(isScenario)) throw new Error('Backup contains malformed scenarios.');
   let workWeek: WorkWeek | undefined;
   try {
@@ -180,7 +200,7 @@ export async function importWorkspace(json: string): Promise<number> {
     .filter((s) => taskIds.has(s.taskId))
     .map((s) => ({ ...s, source: s.source === 'timer' ? ('timer' as const) : ('manual' as const), createdAt: s.createdAt ?? s.end }));
 
-  await db.transaction('rw', [db.tasks, db.categories, db.blocks, db.sessions, db.scenarios, db.meta, db.exams], async () => {
+  await db.transaction('rw', [db.tasks, db.categories, db.blocks, db.sessions, db.scenarios, db.meta, db.exams, db.classes], async () => {
     await db.tasks.clear();
     await db.categories.clear();
     await db.blocks.clear();
@@ -189,6 +209,8 @@ export async function importWorkspace(json: string): Promise<number> {
     await db.scenarios.clear();
     await db.scenarios.bulkAdd(scenarios);
     await db.exams.clear();
+    await db.classes.clear();
+    await db.classes.bulkAdd(classes.map((c) => ({ ...c, location: c.location ?? '' })));
     await db.exams.bulkAdd(exams.map((x) => ({ ...x, location: x.location ?? '', notes: x.notes ?? '' })));
     // Preferences are only replaced when the backup carries them.
     if (workWeek) await db.meta.put({ key: WORK_WEEK_KEY, value: workWeek });

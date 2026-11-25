@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'motion/react';
-import { AlertTriangle, CalendarX2, Check, Users } from 'lucide-react';
+import { AlertTriangle, BookOpen, CalendarX2, Check, Users } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { formatClock, formatDuration } from '@/lib/format';
 import { taskRef } from '@/domain/constants';
@@ -51,8 +51,8 @@ export const BlockView = memo(function BlockView({
   const isEvent = block.kind === 'event';
   const done = task?.status === 'done';
   const conflict = layout.overlaps.length > 0;
-  // Exams stand out in amber; other events stay neutral.
-  const color = isEvent ? (block.examId ? 'var(--color-warning)' : 'var(--color-fg-faint)') : categoryColor(category);
+  // Exams stand out in amber; classes take their course colour; other events stay neutral.
+  const color = isEvent ? (block.examId ? 'var(--color-warning)' : block.classId ? categoryColor(category) : 'var(--color-fg-faint)') : categoryColor(category);
   const title = isEvent ? block.title : (task?.title ?? 'Deleted task');
   const compact = minutes < 45;
   const tiny = minutes < 30;
@@ -113,7 +113,7 @@ export const BlockView = memo(function BlockView({
 
       <div className={cn('flex h-full min-w-0 flex-col px-1.5', tiny ? 'justify-center py-0' : 'py-1')}>
         <div className="flex min-w-0 items-center gap-1">
-          {isEvent && !compact && <Users size={11} className="shrink-0 text-fg-subtle" />}
+          {isEvent && !compact && (block.classId ? <BookOpen size={11} className="shrink-0 text-fg-subtle" /> : <Users size={11} className="shrink-0 text-fg-subtle" />)}
           {done && <Check size={11} strokeWidth={2.5} className="shrink-0 text-positive" />}
           <span
             className={cn(

@@ -17,6 +17,7 @@ Everything runs in the browser. There is no backend, no account and no AI servic
 | **Focus Mode** | A full-screen pomodoro workspace for one task with break reminders; focus time is recorded as actual time. |
 | **Student mode** | Courses instead of categories, 11:59 pm default deadlines, a student study-hours preset, and quarter awareness (Week 0–10 and finals week, UCLA-style) in the header, Command Center and Timeline. |
 | **Exam prep planner** | Add exams with topics rated 😬/🙂/😎; FocusFlow spreads review sessions over the days before (denser near the exam, weak topics more often, a practice exam, a light last day), adds them as tasks placed in free time, and tracks progress — on track, behind, ready — with a two-week crunch view. |
+| **Class schedule** | Add each class once (course, type, days like MW/TR, time, location); its meetings appear on the timeline in the course colour for every week of the term, skip no-class days, and stop for finals week — so free time, auto-scheduling and study plans work around them. |
 | **Settings** | Working hours, Focus Mode defaults, categories, backup export/import and data reset. |
 | **Installable app** | Install from the browser (Settings → App explains how on each device); opens offline and offers a one-click reload when a new version is deployed. |
 
