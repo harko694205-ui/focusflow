@@ -9,6 +9,7 @@ import { useWorkspace } from '@/hooks/data';
 import { settingsActions } from '@/features/settings/actions';
 import { CategorySwatch } from '@/features/tasks/TaskMeta';
 import { NAV } from './nav';
+import { AppIcon } from './AppIcon';
 import { useUI } from './store';
 import { Tooltip } from '@/ui/Tooltip';
 import { Kbd } from '@/ui/Kbd';
@@ -19,13 +20,7 @@ import { scenarioLateDelta, useScenarios } from '@/features/simulator/model';
 import { useSim } from '@/features/simulator/store';
 
 export function Logo({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden className="shrink-0">
-      <rect width="20" height="20" rx="5" fill="#1d1d24" />
-      <rect x="0.5" y="0.5" width="19" height="19" rx="4.5" fill="none" stroke="rgb(255 255 255 / 0.1)" />
-      <path d="M5.5 6h9M5.5 10h6M5.5 14h3" stroke="var(--color-accent)" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
+  return <AppIcon size={size} />;
 }
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {

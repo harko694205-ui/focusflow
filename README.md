@@ -2,7 +2,7 @@
 
 A personal workload operating system. Tasks are treated as demand against a finite capacity — your working hours — and FocusFlow shows where the two collide, plans around it, lets you test changes before committing, and learns from how your work actually goes.
 
-Everything runs in the browser. There is no backend, no account and no AI service: data lives in IndexedDB on your device.
+Everything runs in the browser. There is no backend, no account and no AI service: data lives in IndexedDB on your device. FocusFlow installs as an app (its own window and icon) and works offline.
 
 ## Features
 
@@ -16,6 +16,7 @@ Everything runs in the browser. There is no backend, no account and no AI servic
 | **Insights** | Completion rate, estimate accuracy, weekly workload, most productive hours, frequently postponed tasks and time by category — plus estimate suggestions in the task editor. |
 | **Focus Mode** | A full-screen pomodoro workspace for one task with break reminders; focus time is recorded as actual time. |
 | **Settings** | Working hours, Focus Mode defaults, categories, backup export/import and data reset. |
+| **Installable app** | Install from the browser (Settings → App explains how on each device); opens offline and offers a one-click reload when a new version is deployed. |
 
 Press <kbd>?</kbd> anywhere for keyboard shortcuts, <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>K</kbd> for the command palette.
 
@@ -64,6 +65,7 @@ Rules the code follows:
 - Stored in this browser only (IndexedDB). Clearing site data deletes it — export a backup from Settings → Data to keep or move it.
 - Backups are a single JSON file with tasks, categories, schedule, time entries, scenarios and preferences. Imports are validated before anything is written.
 - No network requests are made after the app loads; the production Content-Security-Policy (`connect-src 'self'`) enforces it.
+- A service worker (generated at build time by `vite-plugin-sw.ts`) keeps a copy of the app's files so it opens without a connection. It is only registered in production builds.
 
 ## Deploying to Vercel
 
@@ -76,7 +78,7 @@ The repo is ready for Vercel as a static site:
 `vercel.json` also:
 
 - rewrites every path to `index.html` so deep links like `/settings#data` work;
-- caches hashed assets for a year and revalidates `index.html` on every visit, so new releases are picked up immediately;
+- caches hashed assets for a year and revalidates `index.html`, `sw.js` and the manifest on every visit, so new releases are picked up immediately (installed apps show "A new version is ready · Reload");
 - sends security headers (CSP, `nosniff`, referrer and permissions policies). `npm run preview` serves the same headers locally — check there after changing dependencies.
 
 Or from the command line: `npx vercel` (preview) and `npx vercel --prod`.

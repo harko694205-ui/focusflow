@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { Clock, Crosshair, Database, Keyboard, Palette, Tags } from 'lucide-react';
+import { AppWindow, Clock, Crosshair, Database, Keyboard, Palette, Tags } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useUI } from '@/app/store';
 import { useFocusSettings, useWorkspace } from '@/hooks/data';
 import { FocusSettingsForm } from '@/features/focus/FocusSettingsMenu';
 import { CategoryManager } from '@/features/settings/CategoryManager';
 import { DataSection } from '@/features/settings/DataSection';
+import { AppSection } from '@/features/settings/AppSection';
 import { WorkWeekEditor } from '@/features/settings/WorkWeekEditor';
 import { Button } from '@/ui/Button';
 import { Skeleton } from '@/ui/Feedback';
@@ -18,6 +19,7 @@ const SECTIONS = [
   { id: 'focus', label: 'Focus Mode', icon: Crosshair },
   { id: 'categories', label: 'Categories', icon: Tags },
   { id: 'data', label: 'Data', icon: Database },
+  { id: 'app', label: 'App', icon: AppWindow },
   { id: 'help', label: 'Shortcuts & about', icon: Keyboard },
 ] as const;
 
@@ -80,6 +82,10 @@ export function SettingsPage() {
             <DataSection />
           </Section>
 
+          <Section id="app" title="App" description="Install FocusFlow on this device and use it offline.">
+            <AppSection />
+          </Section>
+
           <Section id="help" title="Shortcuts & about">
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -91,7 +97,7 @@ export function SettingsPage() {
                 </Button>
               </div>
               <p className="text-xs text-fg-subtle">
-                FocusFlow <span className="num">v{__APP_VERSION__}</span> · a personal workload operating system. No account, no server: your data never leaves this browser.
+                FocusFlow <span className="num">v{__APP_VERSION__}</span> · a personal workload operating system. No account, no server: your data never leaves this device, and the app works offline once loaded.
               </p>
             </div>
           </Section>

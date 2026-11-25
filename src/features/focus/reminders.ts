@@ -49,8 +49,15 @@ export async function requestNotifications(): Promise<boolean> {
 
 export function notify(title: string, body: string) {
   if (notificationPermission() !== 'granted') return;
+  const options: NotificationOptions = { body, tag: 'focusflow-focus', silent: true, icon: '/icons/icon-192.png', badge: '/icons/favicon-32.png' };
+  // Through the service worker when there is one: required on Android, and the click handler
+  // (in sw.js) brings the app forward even if this tab was closed.
+  if (navigator.serviceWorker?.controller) {
+    void navigator.serviceWorker.ready.then((reg) => reg.showNotification(title, options)).catch(() => undefined);
+    return;
+  }
   try {
-    const n = new Notification(title, { body, tag: 'focusflow-focus', silent: true });
+    const n = new Notification(title, options);
     n.onclick = () => {
       window.focus();
       n.close();

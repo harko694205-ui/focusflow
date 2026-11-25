@@ -8,6 +8,7 @@ import { AppShell } from './app/AppShell';
 import { Root } from './app/Root';
 import { NotFound, RouteError } from './app/RouteError';
 import { TooltipProvider } from './ui/Tooltip';
+import { initPwa } from './pwa/pwa';
 
 /**
  * Pages are code-split: each loads the first time it's visited (charts and the simulator
@@ -42,6 +43,8 @@ const router = createBrowserRouter([
     ],
   },
 ]);
+
+initPwa();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
