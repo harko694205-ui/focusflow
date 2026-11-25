@@ -294,3 +294,20 @@ describe('backup v4', () => {
     await expect(importWorkspace(JSON.stringify({ ...backup, scenarios: [{ id: 1 }] }))).rejects.toThrow(/scenarios/);
   });
 });
+
+describe('profile', () => {
+  it('saves, merges, undoes and travels with backups', async () => {
+    const { getProfile, setProfile, restoreProfile } = await import('../settingsService');
+    expect((await getProfile()).mode).toBe('work');
+    const r = await setProfile({ mode: 'student', dueTime: '23:59', term: { name: 'Fall 2026', start: '2026-09-24', weeks: 10, finals: true } });
+    expect(r.before).toBeNull();
+    expect((await getProfile()).term?.name).toBe('Fall 2026');
+    await expect(setProfile({ dueTime: 'soon' })).rejects.toThrow(/hh:mm/);
+
+    const backup = await buildBackup();
+    await restoreProfile(null);
+    expect((await getProfile()).mode).toBe('work');
+    await importWorkspace(JSON.stringify(backup));
+    expect(await getProfile()).toMatchObject({ mode: 'student', dueTime: '23:59' });
+  });
+});

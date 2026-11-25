@@ -15,6 +15,7 @@ Everything runs in the browser. There is no backend, no account and no AI servic
 | **Simulator** | Fork the schedule into scenarios — move, add or remove blocks, take a day off, change estimates, deadlines or priorities, auto-plan — compare against the baseline, then apply or discard. |
 | **Insights** | Completion rate, estimate accuracy, weekly workload, most productive hours, frequently postponed tasks and time by category — plus estimate suggestions in the task editor. |
 | **Focus Mode** | A full-screen pomodoro workspace for one task with break reminders; focus time is recorded as actual time. |
+| **Student mode** | Courses instead of categories, 11:59 pm default deadlines, a student study-hours preset, and quarter awareness (Week 0–10 and finals week, UCLA-style) in the header, Command Center and Timeline. |
 | **Settings** | Working hours, Focus Mode defaults, categories, backup export/import and data reset. |
 | **Installable app** | Install from the browser (Settings → App explains how on each device); opens offline and offers a one-click reload when a new version is deployed. |
 

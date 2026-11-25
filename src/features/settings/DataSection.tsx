@@ -6,6 +6,7 @@ import { taskActions } from '@/features/tasks/actions';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/Confirm';
 import { settingsActions } from './actions';
+import { useTerms } from '@/hooks/data';
 
 function useStorage() {
   const counts = useLiveQuery(async () => {
@@ -30,6 +31,7 @@ const kb = (bytes: number) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(b
 type Pending = { kind: 'import'; file: File } | { kind: 'demo' } | { kind: 'clear' } | null;
 
 export function DataSection() {
+  const terms = useTerms();
   const s = useStorage();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<Pending>(null);
@@ -84,7 +86,7 @@ export function DataSection() {
       </div>
 
       <div className="flex flex-col divide-y divide-line overflow-hidden rounded-sm border border-line">
-        <Row icon={Download} title="Export backup" detail="Tasks, categories, schedule, time entries, scenarios and preferences as one JSON file.">
+        <Row icon={Download} title="Export backup" detail={`Tasks, ${terms.lowerMany}, schedule, time entries, scenarios and preferences as one JSON file.`}>
           <Button variant="secondary" onClick={() => void settingsActions.exportBackup()}>
             Export
           </Button>
@@ -115,7 +117,7 @@ export function DataSection() {
             Load demo
           </Button>
         </Row>
-        <Row icon={Trash2} title="Clear all tasks" detail="Delete every task, schedule block and time entry. Categories and preferences stay." danger>
+        <Row icon={Trash2} title="Clear all tasks" detail={`Delete every task, schedule block and time entry. ${terms.many} and preferences stay.`} danger>
           <Button variant="danger" onClick={() => setPending({ kind: 'clear' })}>
             Clear…
           </Button>
@@ -153,7 +155,7 @@ export function DataSection() {
         secondary={exportFirst}
         onConfirm={() => taskActions.clearAll()}
       >
-        Every task, schedule block and time entry is permanently deleted. Categories, working hours and Focus Mode settings stay. This can’t be undone.
+        Every task, schedule block and time entry is permanently deleted. {terms.many}, working hours and Focus Mode settings stay. This can’t be undone.
       </ConfirmDialog>
     </div>
   );

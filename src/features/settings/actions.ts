@@ -2,6 +2,7 @@
 import { run } from '@/app/commands';
 import type { WorkWeek } from '@/domain/constants';
 import type { CategoryColor, ID } from '@/domain/types';
+import type { Profile } from '@/domain/profile';
 import { weeklyMinutes } from '@/domain/workweek';
 import { formatDuration } from '@/lib/format';
 import * as settings from '@/services/settingsService';
@@ -49,5 +50,14 @@ export const settingsActions = {
     run(
       async () => importWorkspace(await file.text()),
       (n) => ({ message: `Imported ${n} tasks` }),
+    ),
+};
+
+/** Work / Student mode, term and default due time. */
+export const profileActions = {
+  update: (patch: Partial<Profile>, message = '') =>
+    run(
+      () => settings.setProfile(patch),
+      ({ before }) => ({ message, undo: { label: 'profile change', run: () => settings.restoreProfile(before) } }),
     ),
 };

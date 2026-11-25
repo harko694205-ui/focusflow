@@ -6,17 +6,20 @@ import { normalizeSettings, type FocusSettings } from '@/domain/focus';
 import { normalizeWorkWeek } from '@/domain/workweek';
 import { WORK_WEEK_KEY } from './settingsService';
 import { FOCUS_SETTINGS_KEY } from './focusService';
+import { PROFILE_KEY } from './settingsService';
+import { readProfile, type Profile } from '@/domain/profile';
 
 const FORMAT = 'focusflow-backup';
 /**
  * v1: tasks + categories. v2: adds time blocks. v3: adds work sessions (time tracking).
- * v4: adds simulator scenarios and preferences (working hours, Focus Mode settings).
+ * v4: adds simulator scenarios and preferences (working hours, Focus Mode settings, profile).
  */
 const VERSION = 4;
 
 interface Preferences {
   workWeek?: WorkWeek;
   focusSettings?: FocusSettings;
+  profile?: Profile;
 }
 
 interface Backup {
@@ -32,7 +35,7 @@ interface Backup {
 }
 
 export async function buildBackup(): Promise<Backup> {
-  const [categories, tasks, blocks, sessions, scenarios, workWeek, focusSettings] = await Promise.all([
+  const [categories, tasks, blocks, sessions, scenarios, workWeek, focusSettings, profile] = await Promise.all([
     db.categories.toArray(),
     db.tasks.toArray(),
     db.blocks.toArray(),
@@ -40,10 +43,12 @@ export async function buildBackup(): Promise<Backup> {
     db.scenarios.toArray(),
     db.meta.get(WORK_WEEK_KEY),
     db.meta.get(FOCUS_SETTINGS_KEY),
+    db.meta.get(PROFILE_KEY),
   ]);
   const preferences: Preferences = {
     ...(workWeek ? { workWeek: workWeek.value as WorkWeek } : {}),
     ...(focusSettings ? { focusSettings: focusSettings.value as FocusSettings } : {}),
+    ...(profile ? { profile: profile.value as Profile } : {}),
   };
   return { format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), categories, tasks, blocks, sessions, scenarios, preferences };
 }
@@ -143,6 +148,7 @@ export async function importWorkspace(json: string): Promise<number> {
     throw new Error('Backup contains malformed working hours.');
   }
   const focusSettings = data.preferences?.focusSettings === undefined ? undefined : normalizeSettings(data.preferences.focusSettings);
+  const profile = data.preferences?.profile === undefined ? undefined : readProfile(data.preferences.profile);
 
   const tasks = data.tasks.map((t) => ({ ...t, notes: t.notes ?? '', completedAt: t.completedAt ?? null }));
   const taskIds = new Set(tasks.map((t) => t.id));
@@ -165,6 +171,7 @@ export async function importWorkspace(json: string): Promise<number> {
     // Preferences are only replaced when the backup carries them.
     if (workWeek) await db.meta.put({ key: WORK_WEEK_KEY, value: workWeek });
     if (focusSettings) await db.meta.put({ key: FOCUS_SETTINGS_KEY, value: focusSettings });
+    if (profile) await db.meta.put({ key: PROFILE_KEY, value: profile });
     await db.meta.delete('activeTimer');
     await db.meta.delete('focusSession');
     await db.categories.bulkAdd(data.categories);

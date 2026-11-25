@@ -5,7 +5,7 @@ import { ChevronDown, Download, GitBranch, HardDrive, Plus, Settings2, Upload, W
 import { cn } from '@/lib/cn';
 import { formatDuration } from '@/lib/format';
 import { categoryStats, summarize } from '@/domain/stats';
-import { useWorkspace } from '@/hooks/data';
+import { useTerms, useWorkspace } from '@/hooks/data';
 import { settingsActions } from '@/features/settings/actions';
 import { CategorySwatch } from '@/features/tasks/TaskMeta';
 import { NAV } from './nav';
@@ -24,6 +24,7 @@ export function Logo({ size = 20 }: { size?: number }) {
 }
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
+  const terms = useTerms();
   const openCreate = useUI((s) => s.openCreate);
   const setMobileNav = useUI((s) => s.setMobileNav);
   const navigate = useNavigate();
@@ -199,7 +200,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
 
           {/* Categories */}
           <section>
-            <h3 className="eyebrow flex h-6 items-center px-2">Categories</h3>
+            <h3 className="eyebrow flex h-6 items-center px-2">{terms.many}</h3>
             <ul className="flex flex-col gap-px">
               {loading &&
                 Array.from({ length: 4 }, (_, i) => (

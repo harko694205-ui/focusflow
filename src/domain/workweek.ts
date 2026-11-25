@@ -47,7 +47,22 @@ export const WORK_WEEK_PRESETS: Array<{ id: string; label: string; hint: string;
     hint: 'Mon–Fri · 08:30–13:00',
     week: days([{ start: hm(8, 30), end: hm(13) }], WEEKDAYS_ONLY),
   },
+  {
+    // Study time: days around classes, evenings, and Sunday; Saturday off.
+    id: 'student',
+    label: 'Student',
+    hint: 'Mon–Fri days + evenings · Sun',
+    week: {
+      ...days([{ start: hm(10), end: hm(12) }, { start: hm(13), end: hm(17) }, { start: hm(19), end: hm(22) }], WEEKDAYS_ONLY),
+      0: [
+        { start: hm(13), end: hm(17) },
+        { start: hm(19), end: hm(22) },
+      ],
+    },
+  },
 ];
+
+export const STUDENT_PRESET = WORK_WEEK_PRESETS.find((p) => p.id === 'student')!;
 
 export function dayMinutes(ivs: readonly WorkInterval[]): Minutes {
   return ivs.reduce((a, x) => a + (x.end - x.start), 0);

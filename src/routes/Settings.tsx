@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { AppWindow, Clock, Crosshair, Database, Keyboard, Palette, Tags } from 'lucide-react';
+import { AppWindow, Clock, Crosshair, Database, GraduationCap, Keyboard, Palette, Tags } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useUI } from '@/app/store';
-import { useFocusSettings, useWorkspace } from '@/hooks/data';
+import { useFocusSettings, useProfile, useTerms, useWorkspace } from '@/hooks/data';
+import { ModeSection } from '@/features/settings/ModeSection';
 import { FocusSettingsForm } from '@/features/focus/FocusSettingsMenu';
 import { CategoryManager } from '@/features/settings/CategoryManager';
 import { DataSection } from '@/features/settings/DataSection';
@@ -15,6 +16,7 @@ import { Kbd } from '@/ui/Kbd';
 import { Page, PageHeader } from './PageHeader';
 
 const SECTIONS = [
+  { id: 'mode', label: 'Work or school', icon: GraduationCap },
   { id: 'hours', label: 'Working hours', icon: Clock },
   { id: 'focus', label: 'Focus Mode', icon: Crosshair },
   { id: 'categories', label: 'Categories', icon: Tags },
@@ -29,6 +31,8 @@ export function SettingsPage() {
   const setShortcuts = useUI((s) => s.setShortcuts);
   const navigate = useNavigate();
   const active = useActiveSection();
+  const profile = useProfile();
+  const terms = useTerms();
 
   return (
     <Page>
@@ -52,7 +56,7 @@ export function SettingsPage() {
                   )}
                 >
                   <s.icon size={14} strokeWidth={1.75} className={active === s.id ? 'text-accent' : 'text-fg-subtle'} />
-                  {s.label}
+                  {s.id === 'categories' ? terms.many : s.label}
                 </a>
               </li>
             ))}
@@ -60,6 +64,10 @@ export function SettingsPage() {
         </nav>
 
         <div className="flex min-w-0 max-w-[880px] flex-1 flex-col gap-5">
+          <Section id="mode" title="Work or school" description="Student mode calls categories courses, defaults deadlines to 11:59 pm and shows the week of your quarter.">
+            <ModeSection profile={profile} week={ws.week} now={ws.now} />
+          </Section>
+
           <Section id="hours" title="Working hours" description="Your capacity. Risk, load, the timeline, auto-scheduling, the simulator and insights all plan within these hours.">
             {ws.loading ? <Skeleton className="h-[320px]" /> : <WorkWeekEditor week={ws.week} />}
           </Section>
@@ -74,7 +82,7 @@ export function SettingsPage() {
             )}
           </Section>
 
-          <Section id="categories" title="Categories" description="Rename, recolor or remove categories. Deleting one moves its tasks to another.">
+          <Section id="categories" title={terms.many} description={`Rename, recolor or remove ${terms.lowerMany}. Deleting one moves its tasks to another.`}>
             {ws.loading ? <Skeleton className="h-[200px]" /> : <CategoryManager categories={ws.categories} tasks={ws.tasks} />}
           </Section>
 

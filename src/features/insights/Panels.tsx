@@ -25,6 +25,7 @@ import { useUI } from '@/app/store';
 import { categoryColor } from '@/features/tasks/TaskMeta';
 import { Panel, PanelHeader, Tag } from '@/ui/Data';
 import { EmptyState } from '@/ui/Feedback';
+import { useTerms } from '@/hooks/data';
 
 const axisTick = { fill: 'var(--color-fg-subtle)', fontSize: 11, fontFamily: 'var(--font-mono)' };
 const hours = (v: number) => `${Math.round(v / 60)}h`;
@@ -217,6 +218,7 @@ function RatioBar({ ratio }: { ratio: number | null }) {
 }
 
 export function AccuracyPanel({ stats, categories }: { stats: AccuracyStats; categories: ReadonlyMap<ID, Category> }) {
+  const terms = useTerms();
   const openEdit = useUI((s) => s.openEdit);
   const points = useMemo(
     () => stats.rows.map((r) => ({ x: r.estimate, y: r.actual, taskId: r.task.id, name: r.task.title, code: taskRef(r.task.seq), difficulty: r.task.difficulty, source: r.source })),
@@ -332,7 +334,7 @@ export function AccuracyPanel({ stats, categories }: { stats: AccuracyStats; cat
                 </li>
               ))}
             </ul>
-            <span className="eyebrow pt-1">By category</span>
+            <span className="eyebrow pt-1">By {terms.lower}</span>
             <ul className="flex flex-col gap-1.5">
               {stats.byCategory.slice(0, 5).map((g) => {
                 const c = categories.get(g.key);
@@ -340,7 +342,7 @@ export function AccuracyPanel({ stats, categories }: { stats: AccuracyStats; cat
                   <li key={g.key} className="flex items-center justify-between gap-2 text-xs">
                     <span className="flex min-w-0 items-center gap-1.5 text-fg-muted">
                       <span className="size-2 shrink-0 rounded-full" style={{ background: categoryColor(c) }} />
-                      <span className="truncate">{c?.name ?? 'Deleted category'}</span>
+                      <span className="truncate">{c?.name ?? `Deleted ${terms.lower}`}</span>
                       <span className="num text-2xs text-fg-subtle">{g.n}</span>
                     </span>
                     <RatioBar ratio={g.ratio} />
@@ -481,15 +483,16 @@ export function HoursPanel({ stats }: { stats: HourStats }) {
 /* -------------------------------------------------------------------------- */
 
 export function AllocationPanel({ stats, categories }: { stats: AllocationStats; categories: ReadonlyMap<ID, Category> }) {
+  const terms = useTerms();
   return (
     <Panel>
       <PanelHeader
-        title="Time by category"
+        title={`Time by ${terms.lower}`}
         icon={PieChart}
         meta={stats.total > 0 && <span className="num">{formatDuration(stats.total, { compact: true })} {stats.basis}</span>}
       />
       {stats.total === 0 ? (
-        <Empty icon={PieChart} title="No time yet" description="Tracked (or scheduled) time is split by category here." />
+        <Empty icon={PieChart} title="No time yet" description={`Tracked (or scheduled) time is split by ${terms.lower} here.`} />
       ) : (
         <div className="flex flex-col gap-3 px-3.5 py-3">
           <div className="flex h-2 overflow-hidden rounded-full">
@@ -503,7 +506,7 @@ export function AllocationPanel({ stats, categories }: { stats: AllocationStats;
               return (
                 <li key={r.categoryId} className="flex items-center gap-2 text-xs">
                   <span className="size-2 shrink-0 rounded-full" style={{ background: categoryColor(c) }} />
-                  <span className="min-w-0 flex-1 truncate text-fg-muted">{c?.name ?? 'Deleted category'}</span>
+                  <span className="min-w-0 flex-1 truncate text-fg-muted">{c?.name ?? `Deleted ${terms.lower}`}</span>
                   <span className="num text-fg">{formatDuration(stats.basis === 'tracked' ? r.tracked : r.scheduled, { compact: true })}</span>
                   <span className="num w-10 text-right text-fg-subtle">{Math.round(r.share * 100)}%</span>
                 </li>
@@ -522,6 +525,7 @@ export function AllocationPanel({ stats, categories }: { stats: AllocationStats;
 /* -------------------------------------------------------------------------- */
 
 export function PostponedPanel({ stats, categories }: { stats: PostponedStats; categories: ReadonlyMap<ID, Category> }) {
+  const terms = useTerms();
   const openEdit = useUI((s) => s.openEdit);
   const rows = stats.rows.slice(0, 8);
   return (
@@ -538,7 +542,7 @@ export function PostponedPanel({ stats, categories }: { stats: PostponedStats; c
           <table className="w-full min-w-[560px] text-xs">
             <thead>
               <tr className="h-8 border-b border-line text-left">
-                {['Task', 'Category', 'Pushed', 'Moved', 'Slipped', 'Status'].map((h, i) => (
+                {['Task', terms.one, 'Pushed', 'Moved', 'Slipped', 'Status'].map((h, i) => (
                   <th key={h} className={cn('eyebrow whitespace-nowrap px-3.5 font-normal', i >= 2 && i <= 4 && 'text-right')}>
                     {h}
                   </th>

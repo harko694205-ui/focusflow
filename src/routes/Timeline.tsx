@@ -39,6 +39,7 @@ import { BlockCard, CreateCard, type CardPlacement } from '@/features/timeline/C
 import { DragChip, Tray } from '@/features/timeline/Tray';
 import { useDragController } from '@/features/timeline/useDragController';
 import { GRID_HEIGHT, HOUR_PX, PX_PER_MIN, useTimeline, type DragState } from '@/features/timeline/store';
+import { useTermWeekFor } from '@/features/term/useTerm';
 
 const GUTTER = 56;
 
@@ -53,6 +54,7 @@ function rangeLabel(days: Date[]): string {
 
 export function TimelinePage() {
   const ws = useWorkspace();
+  const termWeekFor = useTermWeekFor();
   const { tasks, categoryMap, risk, schedule } = ws;
   const now = useNow(30_000);
   const nowMinute = minutesNow(new Date(now));
@@ -85,6 +87,7 @@ export function TimelinePage() {
     return Array.from({ length: 7 }, (_, i) => addDays(first, i));
   }, [view, anchor]);
   const rangeKey = dayKey(days[0]) + view;
+  const termWeek = termWeekFor(days[0]);
 
   const routerNavigate = useNavigate();
   // Auto-schedule never writes to the real timeline directly: it opens the plan as a scenario to review and apply.
@@ -405,6 +408,7 @@ export function TimelinePage() {
         </div>
         <h1 className="min-w-0 truncate text-base font-semibold tracking-[-0.01em]" aria-live="polite">
           {rangeLabel(days)}
+          {termWeek && <span className="ml-2 text-sm font-normal text-fg-subtle">· {termWeek.label}</span>}
         </h1>
 
         <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-2">

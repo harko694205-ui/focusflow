@@ -12,6 +12,7 @@ import { SegmentedControl } from '@/ui/Data';
 import { Menu, MenuCheckboxItem, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuSub, MenuTrigger } from '@/ui/Menu';
 import { useTaskView } from './viewStore';
 import { CategorySwatch, DifficultyDots, PriorityIcon } from './TaskMeta';
+import { useTerms } from '@/hooks/data';
 
 interface ToolbarProps {
   categories: Category[];
@@ -19,6 +20,7 @@ interface ToolbarProps {
 }
 
 export const TaskToolbar = forwardRef<HTMLInputElement, ToolbarProps>(function TaskToolbar({ categories, counts }, searchRef) {
+  const terms = useTerms();
   const { filter, sort, group, setFilter, toggleFacet, clearFacets, setSort, setGroup } = useTaskView();
   const facetCount = activeFilterCount(filter);
   const catById = new Map(categories.map((c) => [c.id, c]));
@@ -29,7 +31,7 @@ export const TaskToolbar = forwardRef<HTMLInputElement, ToolbarProps>(function T
       label: (
         <>
           <CategorySwatch category={catById.get(id)} />
-          {catById.get(id)?.name ?? 'Deleted category'}
+          {catById.get(id)?.name ?? `Deleted ${terms.lower}`}
         </>
       ),
       onRemove: () => toggleFacet('categories', id),
@@ -111,7 +113,7 @@ export const TaskToolbar = forwardRef<HTMLInputElement, ToolbarProps>(function T
             </Button>
           </MenuTrigger>
           <MenuContent align="end" className="w-52">
-            <MenuSub label="Category" icon={TagIcon}>
+            <MenuSub label={terms.one} icon={TagIcon}>
               {categories.map((c) => (
                 <MenuCheckboxItem key={c.id} checked={filter.categories.includes(c.id)} onCheckedChange={() => toggleFacet('categories', c.id)}>
                   <span className="flex items-center gap-2">

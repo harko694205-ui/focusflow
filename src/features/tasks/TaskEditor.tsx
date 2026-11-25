@@ -11,7 +11,7 @@ import { DIFFICULTIES, PRIORITIES, STATUSES, taskRef } from '@/domain/constants'
 import { combineDateTime, splitDateTime } from '@/domain/dates';
 import { isValid, parseEstimate, validateDraft, type DraftErrors } from '@/domain/validation';
 import type { Difficulty, ID, Priority, Task, TaskDraft, TaskStatus } from '@/domain/types';
-import { useCategories, useTask, useTaskBlocks, useTasks } from '@/hooks/data';
+import { useCategories, useProfile, useTask, useTaskBlocks, useTasks, useTerms } from '@/hooks/data';
 import { RecommendationSection } from '@/features/scheduling/Recommendation';
 import { DependencyField } from './DependencyField';
 import { EstimateHint, TimeSection } from '@/features/tracking/TimeSection';
@@ -43,14 +43,16 @@ const NEW_CATEGORY = '__new__';
 
 const liveIds = (ids: ID[], tasks: Task[] | undefined) => ids.filter((id) => tasks?.some((t) => t.id === id));
 
-function defaultDeadline(): number {
+/** Tomorrow at the profile's default due time ("17:00" for work, "23:59" for students). */
+function defaultDeadline(dueTime: string): number {
   const d = addDays(new Date(), 1);
-  d.setHours(17, 0, 0, 0);
+  const [h, m] = dueTime.split(':').map(Number);
+  d.setHours(h, m, 0, 0);
   return d.getTime();
 }
 
-function toForm(t: Partial<TaskDraft> & { status?: TaskStatus }, fallbackCategory: string): FormState {
-  const { date, time } = splitDateTime(t.deadline ?? defaultDeadline());
+function toForm(t: Partial<TaskDraft> & { status?: TaskStatus }, fallbackCategory: string, dueTime: string): FormState {
+  const { date, time } = splitDateTime(t.deadline ?? defaultDeadline(dueTime));
   return {
     title: t.title ?? '',
     notes: t.notes ?? '',
@@ -163,7 +165,9 @@ function EditorForm({
   categories: NonNullable<ReturnType<typeof useCategories>>;
   onDone: () => void;
 }) {
-  const [form, setForm] = useState<FormState>(() => toForm(task ?? defaults ?? {}, categories[0]?.id ?? ''));
+  const terms = useTerms();
+  const profile = useProfile();
+  const [form, setForm] = useState<FormState>(() => toForm(task ?? defaults ?? {}, categories[0]?.id ?? '', profile.dueTime));
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newCat, setNewCat] = useState<string | null>(categories.length === 0 ? '' : null);
@@ -256,7 +260,7 @@ function EditorForm({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* Category */}
-          <Field label="Category" error={show('categoryId')}>
+          <Field label={terms.one} error={show('categoryId')}>
             {(id) =>
               newCat !== null ? (
                 <div className="flex gap-1.5">
@@ -265,7 +269,7 @@ function EditorForm({
                     autoFocus
                     value={newCat}
                     onChange={(e) => setNewCat(e.target.value)}
-                    placeholder="New category name"
+                    placeholder={`New ${terms.lower} name`}
                     maxLength={40}
                     className="flex-1"
                     onKeyDown={(e) => {
@@ -291,7 +295,7 @@ function EditorForm({
                   onValueChange={(v) => (v === NEW_CATEGORY ? setNewCat('') : set('categoryId', v))}
                   options={[
                     ...categories.map((c) => ({ value: c.id, label: c.name, leading: <CategorySwatch category={c} /> })),
-                    { value: NEW_CATEGORY, label: 'New category…', leading: <Plus size={12} className="text-fg-subtle" /> },
+                    { value: NEW_CATEGORY, label: `New ${terms.lower}…`, leading: <Plus size={12} className="text-fg-subtle" /> },
                   ]}
                 />
               )

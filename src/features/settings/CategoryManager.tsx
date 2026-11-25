@@ -10,8 +10,10 @@ import { Menu, MenuContent, MenuTrigger } from '@/ui/Menu';
 import { Select } from '@/ui/Select';
 import { Tooltip } from '@/ui/Tooltip';
 import { settingsActions } from './actions';
+import { useTerms } from '@/hooks/data';
 
 export function CategoryManager({ categories, tasks }: { categories: Category[]; tasks: Task[] }) {
+  const terms = useTerms();
   const counts = useMemo(() => {
     const m = new Map<ID, { open: number; all: number }>();
     for (const t of tasks) {
@@ -43,7 +45,7 @@ export function CategoryManager({ categories, tasks }: { categories: Category[];
               <span className="num shrink-0 whitespace-nowrap text-right text-xs text-fg-subtle">
                 {n.all ? `${n.open} open · ${n.all - n.open} done` : 'No tasks'}
               </span>
-              <Tooltip content={categories.length <= 1 ? 'Keep at least one category' : 'Delete category'}>
+              <Tooltip content={categories.length <= 1 ? `Keep at least one ${terms.lower}` : `Delete ${terms.lower}`}>
                 <span>
                   <IconButton
                     icon={Trash2}
@@ -66,9 +68,9 @@ export function CategoryManager({ categories, tasks }: { categories: Category[];
           void add();
         }}
       >
-        <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New category name" maxLength={LIMITS.categoryNameMax} aria-label="New category name" className="max-w-[260px]" />
+        <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={`New ${terms.lower} name`} maxLength={LIMITS.categoryNameMax} aria-label={`New ${terms.lower} name`} className="max-w-[260px]" />
         <Button type="submit" variant="secondary" icon={Plus} disabled={!newName.trim()}>
-          Add category
+          Add {terms.lower}
         </Button>
       </form>
 

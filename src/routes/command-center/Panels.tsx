@@ -18,6 +18,7 @@ import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/ui/Menu';
 import { useTaskView } from '@/features/tasks/viewStore';
 import { taskActions } from '@/features/tasks/actions';
 import { CategorySwatch, DifficultyDots, DueCell, PriorityIcon, SlackLabel } from '@/features/tasks/TaskMeta';
+import { useTerms } from '@/hooks/data';
 
 export interface WorkspaceProps {
   tasks: Task[];
@@ -251,16 +252,17 @@ export function DeadlineRadar({ tasks, categoryMap, risk, now, loading }: Worksp
 /* -------------------------------------------------------------------------- */
 
 export function CategoriesPanel({ tasks, categories, risk, loading }: WorkspaceProps) {
+  const terms = useTerms();
   const navigate = useNavigate();
   const stats = useMemo(() => categoryStats(tasks, categories, risk), [tasks, categories, risk]);
 
   return (
     <Panel>
-      <PanelHeader title="Categories" icon={FolderKanban} meta="Remaining work · progress" />
+      <PanelHeader title={terms.many} icon={FolderKanban} meta="Remaining work · progress" />
       {loading ? (
         <RowsSkeleton rows={5} height="h-14" />
       ) : stats.length === 0 ? (
-        <EmptyState compact icon={FolderKanban} title="No categories" description="Create one from the task editor." />
+        <EmptyState compact icon={FolderKanban} title={`No ${terms.lowerMany}`} description="Create one from the task editor." />
       ) : (
         <ul className="flex flex-col py-1">
           {stats.map((s) => {

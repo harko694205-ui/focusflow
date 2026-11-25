@@ -12,6 +12,7 @@ import type { ActiveTimer, Category, ID, Task, TimeBlock, WorkSession } from '@/
 import { DEFAULT_WORK_WEEK, type WorkWeek } from '@/domain/constants';
 import { normalizeSettings, type FocusSession, type FocusSettings } from '@/domain/focus';
 import { readWorkWeek } from '@/domain/workweek';
+import { readProfile, termsFor, type Profile, type Terms } from '@/domain/profile';
 
 export function useTasks(): Task[] | undefined {
   return useLiveQuery(() => db.tasks.toArray(), []);
@@ -128,4 +129,21 @@ export function useWorkWeek(): WorkWeek | undefined {
   const key = raw ? JSON.stringify(raw.v ?? null) : null;
   // Stable identity while the stored value is unchanged, so memoized calculations don't rerun.
   return useMemo(() => (key === null ? undefined : readWorkWeek(JSON.parse(key))), [key]);
+}
+
+/** Last profile any component has loaded, so a newly mounted one (e.g. the task editor) starts right. */
+let lastProfileKey = 'null';
+
+/** Work / Student mode, term and default due time (live). */
+export function useProfile(): Profile {
+  const raw = useLiveQuery(async () => ({ v: (await db.meta.get('profile'))?.value }), []);
+  const key = raw ? JSON.stringify(raw.v ?? null) : lastProfileKey;
+  lastProfileKey = key;
+  return useMemo(() => readProfile(JSON.parse(key)), [key]);
+}
+
+/** "Category"/"Course" wording for the current mode. */
+export function useTerms(): Terms {
+  const mode = useProfile().mode;
+  return useMemo(() => termsFor(mode), [mode]);
 }

@@ -10,7 +10,7 @@ import { taskRef } from '@/domain/constants';
 import { accuracyRows, calibrationFor, groupByTask, type Calibration } from '@/domain/insights';
 import { parseEstimate } from '@/domain/validation';
 import type { Difficulty, ID, Task } from '@/domain/types';
-import { useActiveTimer, useBlocks, useSessions, useTaskSessions, useTasks } from '@/hooks/data';
+import { useActiveTimer, useBlocks, useSessions, useTaskSessions, useTasks, useTerms } from '@/hooks/data';
 import { Button, IconButton } from '@/ui/Button';
 import { Skeleton } from '@/ui/Feedback';
 import { trackingActions } from './actions';
@@ -160,14 +160,16 @@ export function EstimateHint({
   onUse: (minutes: number) => void;
 }) {
   const cal = useCalibration(categoryId, difficulty, taskId);
+  const terms = useTerms();
   if (!cal || !estimate) return null;
   const off = Math.abs(cal.factor - 1);
-  if (off < 0.1) return <span className="text-2xs text-fg-subtle">Your estimates for {BASIS[cal.basis]} are usually spot on.</span>;
+  const basis = cal.basis === 'category' ? `tasks in this ${terms.lower}` : BASIS[cal.basis];
+  if (off < 0.1) return <span className="text-2xs text-fg-subtle">Your estimates for {basis} are usually spot on.</span>;
   const suggested = Math.max(5, Math.round((estimate * cal.factor) / 5) * 5);
   return (
     <span className="flex flex-wrap items-center gap-x-1.5 text-2xs text-fg-subtle">
       <span>
-        {BASIS[cal.basis][0].toUpperCase() + BASIS[cal.basis].slice(1)} usually take{' '}
+        {basis[0].toUpperCase() + basis.slice(1)} usually take{' '}
         <span className={cn('num', cal.factor > 1 ? 'text-warning' : 'text-positive')}>{cal.factor.toFixed(1)}×</span> the estimate ({cal.n} done).
       </span>
       {suggested !== estimate && (

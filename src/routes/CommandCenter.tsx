@@ -11,10 +11,12 @@ import { Page, PageHeader } from './PageHeader';
 import { TodayPanel } from './command-center/TodayPanel';
 import { CategoriesPanel, DeadlineRadar, KpiStrip, QueuePanel } from './command-center/Panels';
 import { FocusWeekPanel, LoadForecastPanel } from './command-center/Charts';
+import { useTermStatus } from '@/features/term/useTerm';
 
 export function CommandCenter() {
   const navigate = useNavigate();
   const ws = useWorkspace();
+  const term = useTermStatus(ws.now);
   const sessions = useSessions();
   const summary = useMemo(() => summarize(ws.tasks, ws.risk, ws.now, ws.week), [ws.tasks, ws.risk, ws.now, ws.week]);
   const taskMap = useMemo(() => new Map(ws.tasks.map((t) => [t.id, t])), [ws.tasks]);
@@ -40,7 +42,21 @@ export function CommandCenter() {
           <>
             <span>{format(ws.now, 'EEEE, MMMM d')}</span>
             <span className="text-fg-faint">·</span>
-            <span className="num">W{getISOWeek(ws.now)}</span>
+            {term ? (
+              <>
+                <span className="text-fg-muted">
+                  {term.term.name} · {term.week.label}
+                </span>
+                {term.finals && (
+                  <>
+                    <span className="text-fg-faint">·</span>
+                    <span>{term.finals}</span>
+                  </>
+                )}
+              </>
+            ) : (
+              <span className="num">W{getISOWeek(ws.now)}</span>
+            )}
           </>
         }
         actions={

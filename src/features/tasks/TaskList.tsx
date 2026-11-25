@@ -10,6 +10,7 @@ import type { Category, ID } from '@/domain/types';
 import { Skeleton } from '@/ui/Feedback';
 import { TASK_GRID, TaskRow } from './TaskRow';
 import { CategorySwatch } from './TaskMeta';
+import { useTerms } from '@/hooks/data';
 
 interface TaskListProps {
   groups: TaskGroup[];
@@ -28,13 +29,14 @@ interface TaskListProps {
 }
 
 export function TaskListHeader() {
+  const terms = useTerms();
   return (
     <div className={cn(TASK_GRID, 'sticky top-0 z-10 h-8 border-b border-line bg-panel px-4')} role="row">
       <span />
       <span />
       <span className="eyebrow hidden md:block">ID</span>
       <span className="eyebrow">Task</span>
-      <span className="eyebrow hidden md:block">Category</span>
+      <span className="eyebrow hidden md:block">{terms.one}</span>
       <span className="eyebrow hidden lg:block">Diff.</span>
       <span className="eyebrow text-right">Est.</span>
       <span className="eyebrow text-right">Due</span>

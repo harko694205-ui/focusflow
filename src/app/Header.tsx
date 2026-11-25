@@ -9,6 +9,7 @@ import { Button, IconButton } from '@/ui/Button';
 import { Kbd, MOD } from '@/ui/Kbd';
 import { Tooltip } from '@/ui/Tooltip';
 import { TimerChip } from '@/features/tracking/TimerChip';
+import { useTermStatus } from '@/features/term/useTerm';
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -27,6 +28,7 @@ export function Header() {
   const setPalette = useUI((s) => s.setPalette);
   const openCreate = useUI((s) => s.openCreate);
   const now = useClock();
+  const term = useTermStatus(now.getTime());
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-canvas/80 px-3 backdrop-blur-md md:px-4">
@@ -71,6 +73,20 @@ export function Header() {
       </span>
 
       <div className="mx-1 hidden h-4 w-px bg-line-strong sm:block" />
+
+      {/* Term week (Student mode) */}
+      {term && (
+        <Tooltip content={[term.term.name, term.week.label, term.finals].filter(Boolean).join(' · ')}>
+          <span
+            className={cn(
+              'hidden h-5 shrink-0 items-center whitespace-nowrap rounded-xs border px-1.5 text-2xs font-medium sm:flex',
+              term.week.phase === 'finals' ? 'border-[rgb(217_164_65/0.35)] bg-warning-muted text-warning' : 'border-line-strong text-fg-muted',
+            )}
+          >
+            {term.week.short}
+          </span>
+        </Tooltip>
+      )}
 
       {/* Clock */}
       <div className="hidden items-baseline gap-2 px-1 sm:flex" aria-label="Current time">
