@@ -8,6 +8,7 @@ import { useUI } from './store';
 import { Button, IconButton } from '@/ui/Button';
 import { Kbd, MOD } from '@/ui/Kbd';
 import { Tooltip } from '@/ui/Tooltip';
+import { TimerChip } from '@/features/tracking/TimerChip';
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -50,6 +51,8 @@ export function Header() {
       </div>
 
       <div className="flex-1" />
+
+      <TimerChip />
 
       {/* Search / palette trigger */}
       <button

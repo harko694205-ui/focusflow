@@ -5,7 +5,7 @@ import { FlaskConical } from 'lucide-react';
 import { summarize } from '@/domain/stats';
 import { buildLoadForecast, todayStrip, workdayEnvelope } from '@/domain/forecast';
 import { categoryColor } from '@/features/tasks/TaskMeta';
-import { useWorkspace } from '@/hooks/data';
+import { useSessions, useWorkspace } from '@/hooks/data';
 import { Button } from '@/ui/Button';
 import { Page, PageHeader } from './PageHeader';
 import { TodayPanel } from './command-center/TodayPanel';
@@ -15,6 +15,7 @@ import { FocusWeekPanel, LoadForecastPanel } from './command-center/Charts';
 export function CommandCenter() {
   const navigate = useNavigate();
   const ws = useWorkspace();
+  const sessions = useSessions();
   const summary = useMemo(() => summarize(ws.tasks, ws.risk, ws.now), [ws.tasks, ws.risk, ws.now]);
   const taskMap = useMemo(() => new Map(ws.tasks.map((t) => [t.id, t])), [ws.tasks]);
   const forecast = useMemo(() => buildLoadForecast(ws.blocks, taskMap, ws.now, 14), [ws.blocks, taskMap, ws.now]);
@@ -75,7 +76,7 @@ export function CommandCenter() {
             <LoadForecastPanel forecast={forecast} />
           </div>
           <div className="flex min-w-0 xl:col-span-4 [&>*]:flex-1">
-            <FocusWeekPanel />
+            <FocusWeekPanel blocks={ws.blocks} sessions={sessions ?? []} now={ws.now} />
           </div>
         </div>
       </div>

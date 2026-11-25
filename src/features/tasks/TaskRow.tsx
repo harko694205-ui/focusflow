@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { motion } from 'motion/react';
-import { Check, Copy, MoreHorizontal, Pencil, RotateCcw, Signal, StickyNote, Trash2, Timer } from 'lucide-react';
+import { Check, Copy, MoreHorizontal, Pencil, Play, RotateCcw, Signal, Square, StickyNote, Trash2, Timer } from 'lucide-react';
+import { trackingActions } from '@/features/tracking/actions';
 import { cn } from '@/lib/cn';
 import { PRIORITIES, PRIORITY_VALUES, taskRef } from '@/domain/constants';
 import type { TaskRisk } from '@/domain/risk';
@@ -20,6 +21,8 @@ interface TaskRowProps {
   scheduled?: TaskSchedule;
   /** Refs of unfinished dependencies, e.g. "FF-3, FF-7". */
   waitingOn?: string;
+  /** The focus timer is running on this task. */
+  timing?: boolean;
   now: number;
   selected: boolean;
   onSelect: () => void;
@@ -29,7 +32,7 @@ interface TaskRowProps {
 export const TASK_GRID =
   'grid grid-cols-[16px_16px_minmax(0,1fr)_64px_72px_28px] md:grid-cols-[16px_16px_48px_minmax(0,1fr)_140px_64px_88px_28px] lg:grid-cols-[16px_16px_48px_minmax(0,1fr)_140px_52px_64px_88px_28px] items-center gap-x-3';
 
-export const TaskRow = memo(function TaskRow({ task, category, risk, scheduled, waitingOn, now, selected, onSelect, onOpen }: TaskRowProps) {
+export const TaskRow = memo(function TaskRow({ task, category, risk, scheduled, waitingOn, timing, now, selected, onSelect, onOpen }: TaskRowProps) {
   const done = task.status === 'done';
 
   return (
@@ -81,6 +84,12 @@ export const TaskRow = memo(function TaskRow({ task, category, risk, scheduled, 
           >
             {task.title}
           </span>
+          {timing && (
+            <span className="relative flex size-1.5 shrink-0" aria-label="Focus timer running">
+              <span className="absolute inset-0 animate-ping rounded-full bg-positive opacity-50" />
+              <span className="relative size-1.5 rounded-full bg-positive" />
+            </span>
+          )}
           {task.notes && <StickyNote size={11} className="shrink-0 text-fg-faint" aria-label="Has notes" />}
           {task.status !== 'done' && <ScheduleBadge task={task} scheduled={scheduled} />}
           {!done && waitingOn && <WaitingBadge refs={waitingOn} />}
@@ -115,6 +124,11 @@ export const TaskRow = memo(function TaskRow({ task, category, risk, scheduled, 
             <MenuItem icon={done ? RotateCcw : Check} shortcut={['X']} onSelect={() => taskActions.toggleComplete(task.id)}>
               {done ? 'Reopen' : 'Mark complete'}
             </MenuItem>
+            {!done && (
+              <MenuItem icon={timing ? Square : Play} shortcut={['S']} onSelect={() => void trackingActions.toggle(task.id)}>
+                {timing ? 'Stop focus timer' : 'Start focus timer'}
+              </MenuItem>
+            )}
             {!done && (
               <MenuItem
                 icon={Timer}

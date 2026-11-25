@@ -14,6 +14,7 @@ import type { Difficulty, ID, Priority, Task, TaskDraft, TaskStatus } from '@/do
 import { useCategories, useTask, useTaskBlocks, useTasks } from '@/hooks/data';
 import { RecommendationSection } from '@/features/scheduling/Recommendation';
 import { DependencyField } from './DependencyField';
+import { EstimateHint, TimeSection } from '@/features/tracking/TimeSection';
 import { Dialog } from '@/ui/Dialog';
 import { Button, IconButton } from '@/ui/Button';
 import { Field, Input, Textarea } from '@/ui/Input';
@@ -318,7 +319,20 @@ function EditorForm({
           <Field
             label="Estimate"
             error={show('estimate')}
-            hint={estimate !== null && !errors.estimate ? `= ${formatDuration(estimate)}` : 'e.g. 45, 1h30, 2.5h'}
+            hint={
+              <span className="flex flex-col gap-0.5">
+                <span>{estimate !== null && !errors.estimate ? `= ${formatDuration(estimate)}` : 'e.g. 45, 1h30, 2.5h'}</span>
+                {!errors.estimate && (
+                  <EstimateHint
+                    categoryId={form.categoryId}
+                    difficulty={form.difficulty}
+                    estimate={estimate}
+                    taskId={task?.id}
+                    onUse={(m) => set('estimateText', formatDuration(m, { compact: true }))}
+                  />
+                )}
+              </span>
+            }
           >
             {(id) => (
               <Input
@@ -430,6 +444,7 @@ function EditorForm({
         </Field>
 
         {mode === 'edit' && task && <RecommendationSection task={task} stale={stale} />}
+        {mode === 'edit' && task && <TimeSection task={task} />}
         {mode === 'edit' && task && <ScheduleSection task={task} onNavigate={onDone} />}
       </div>
 

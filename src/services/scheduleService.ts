@@ -4,8 +4,8 @@
  * records the UI needs for undo.
  */
 import { db } from '@/db/db';
-import { validateSpan } from '@/domain/schedule';
-import type { ID, Instant, TimeBlock } from '@/domain/types';
+import { startOfLocalDay, validateSpan } from '@/domain/schedule';
+import type { ID, Instant, Task, TimeBlock } from '@/domain/types';
 
 export class ScheduleError extends Error {}
 
@@ -42,9 +42,15 @@ export async function createEvent(title: string, start: Instant, end: Instant): 
   return block;
 }
 
-/** Move and/or resize a block. */
-export async function updateBlock(id: ID, patch: { start?: Instant; end?: Instant; title?: string }): Promise<{ before: TimeBlock; after: TimeBlock }> {
-  return db.transaction('rw', db.blocks, async () => {
+/**
+ * Move and/or resize a block. Moving a task's work to a later day counts as a reschedule on the
+ * task (Insights); `taskBefore` is returned so undo can restore the count.
+ */
+export async function updateBlock(
+  id: ID,
+  patch: { start?: Instant; end?: Instant; title?: string },
+): Promise<{ before: TimeBlock; after: TimeBlock; taskBefore: Task | null }> {
+  return db.transaction('rw', db.blocks, db.tasks, async () => {
     const before = await db.blocks.get(id);
     if (!before) throw new ScheduleError('That block no longer exists.');
     const start = patch.start ?? before.start;
@@ -58,7 +64,15 @@ export async function updateBlock(id: ID, patch: { start?: Instant; end?: Instan
     }
     const after: TimeBlock = { ...before, start, end, title, updatedAt: now() };
     await db.blocks.put(after);
-    return { before, after };
+    let taskBefore: Task | null = null;
+    if (before.kind === 'task' && before.taskId && startOfLocalDay(start).getTime() > startOfLocalDay(before.start).getTime()) {
+      const task = await db.tasks.get(before.taskId);
+      if (task && task.status !== 'done') {
+        taskBefore = task;
+        await db.tasks.put({ ...task, rescheduled: (task.rescheduled ?? 0) + 1 });
+      }
+    }
+    return { before, after, taskBefore };
   });
 }
 
@@ -93,5 +107,16 @@ export async function scheduleSessions(taskId: ID, spans: Array<{ start: Instant
     const blocks: TimeBlock[] = spans.map((s) => ({ id: crypto.randomUUID(), kind: 'task', taskId, title: '', start: s.start, end: s.end, createdAt: t, updatedAt: t }));
     await db.blocks.bulkAdd(blocks);
     return blocks;
+  });
+}
+
+/** Undo of a move: the block and, when the move counted as a reschedule, the task's counter. */
+export async function restoreMove(before: TimeBlock, taskBefore: Task | null): Promise<void> {
+  await db.transaction('rw', db.tasks, db.blocks, async () => {
+    await db.blocks.put(before);
+    if (taskBefore) {
+      const cur = await db.tasks.get(taskBefore.id);
+      if (cur) await db.tasks.put({ ...cur, rescheduled: taskBefore.rescheduled });
+    }
   });
 }

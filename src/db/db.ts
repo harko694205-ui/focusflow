@@ -1,7 +1,8 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Category, Task, TimeBlock } from '@/domain/types';
+import type { Category, Task, TimeBlock, WorkSession } from '@/domain/types';
 import type { Scenario } from '@/engine/types';
 import { buildDemoBlocks, buildSeed } from './seed';
+import { buildDemoHistory, buildDemoTracking } from './history';
 
 export interface MetaRow {
   key: string;
@@ -13,6 +14,7 @@ export class FocusFlowDB extends Dexie {
   categories!: EntityTable<Category, 'id'>;
   blocks!: EntityTable<TimeBlock, 'id'>;
   scenarios!: EntityTable<Scenario, 'id'>;
+  sessions!: EntityTable<WorkSession, 'id'>;
   meta!: EntityTable<MetaRow, 'key'>;
 
   /** When false, a freshly created database starts empty (used by tests). */
@@ -40,6 +42,9 @@ export class FocusFlowDB extends Dexie {
     // v3 — simulator scenarios (each carries its own frozen baseline snapshot).
     this.version(3).stores({ scenarios: 'id, status, updatedAt' });
 
+    // v4 — time tracking: work sessions (focus timer / logged time) for Insights.
+    this.version(4).stores({ sessions: 'id, taskId, start' });
+
     // Runs exactly once, when the database is first created in this browser.
     this.on('populate', async (tx) => {
       if (!this.seedOnCreate) return;
@@ -47,8 +52,12 @@ export class FocusFlowDB extends Dexie {
       const { categories, tasks } = buildSeed(now);
       await tx.table('categories').bulkAdd(categories);
       await tx.table('tasks').bulkAdd(tasks);
-      await tx.table('blocks').bulkAdd(buildDemoBlocks(tasks, now));
-      await tx.table('meta').put({ key: 'taskSeq', value: tasks.length });
+      const blocks = buildDemoBlocks(tasks, now);
+      const history = buildDemoHistory(now, tasks.length, categories.map((c) => c.id));
+      await tx.table('blocks').bulkAdd([...blocks, ...history.blocks]);
+      await tx.table('tasks').bulkAdd(history.tasks);
+      await tx.table('sessions').bulkAdd([...history.sessions, ...buildDemoTracking(tasks, blocks, now)]);
+      await tx.table('meta').put({ key: 'taskSeq', value: tasks.length + history.tasks.length });
     });
   }
 }

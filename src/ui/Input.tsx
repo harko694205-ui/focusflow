@@ -54,7 +54,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
 
 interface FieldProps {
   label: string;
-  hint?: string;
+  hint?: ReactNode;
   error?: string;
   className?: string;
   children: (id: string) => ReactNode;

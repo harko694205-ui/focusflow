@@ -145,7 +145,14 @@ describe('persistence', () => {
 
   it('seeds a demo workspace only when a database is first created', async () => {
     const fresh = new FocusFlowDB('focusflow-seed-test');
-    expect(await fresh.tasks.count()).toBe(20);
+    // 20 current demo tasks plus generated history (finished tasks with tracked time).
+    const tasks = await fresh.tasks.toArray();
+    expect(tasks.filter((t) => t.seq <= 20)).toHaveLength(20);
+    const history = tasks.filter((t) => t.seq > 20);
+    expect(history.length).toBeGreaterThan(20);
+    expect(history.every((t) => t.status === 'done' && t.completedAt !== null)).toBe(true);
+    expect(await fresh.sessions.count()).toBeGreaterThan(history.length);
+    expect((await fresh.meta.get('taskSeq'))!.value).toBe(tasks.length);
     expect(await fresh.categories.count()).toBe(5);
     await fresh.tasks.clear();
     fresh.close();

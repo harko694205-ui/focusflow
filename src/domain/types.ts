@@ -39,6 +39,12 @@ export interface Task {
   completedAt: Instant | null;
   /** Tasks that must be finished before this one can start ("blocked by"). Optional for older records. */
   dependsOn?: ID[];
+  /** Times the deadline was pushed later (history for Insights). */
+  postponed?: number;
+  /** Times its scheduled work was moved to a later day. */
+  rescheduled?: number;
+  /** Deadline before the first postponement. */
+  firstDeadline?: Instant;
 }
 
 /** The user-editable part of a task. */
@@ -66,3 +72,22 @@ export interface TimeBlock {
 }
 
 export type CategoryColor = 'iris' | 'teal' | 'amber' | 'rose' | 'sky' | 'lime' | 'violet' | 'slate';
+
+/**
+ * Time actually spent on a task — recorded by the focus timer or logged by hand. This is the
+ * "actual" in estimate-vs-actual, and the source for focus-hour insights.
+ */
+export interface WorkSession {
+  id: ID;
+  taskId: ID;
+  start: Instant;
+  end: Instant;
+  source: 'timer' | 'manual';
+  createdAt: Instant;
+}
+
+/** The running focus timer (at most one). */
+export interface ActiveTimer {
+  taskId: ID;
+  start: Instant;
+}

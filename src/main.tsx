@@ -12,6 +12,7 @@ import { DesignSystem } from './routes/DesignSystem';
 import { TasksPage } from './routes/Tasks';
 import { TimelinePage } from './routes/Timeline';
 import { SimulatorPage } from './routes/Simulator';
+import { InsightsPage } from './routes/Insights';
 
 const router = createBrowserRouter([
   {
@@ -22,7 +23,7 @@ const router = createBrowserRouter([
       { path: 'timeline', element: <TimelinePage /> },
       { path: 'tasks', element: <TasksPage /> },
       { path: 'simulator', element: <SimulatorPage /> },
-      { path: 'insights', element: <PlaceholderPage page="insights" /> },
+      { path: 'insights', element: <InsightsPage /> },
       { path: 'settings', element: <PlaceholderPage page="settings" /> },
       { path: 'design', element: <DesignSystem /> },
     ],

@@ -7,7 +7,8 @@ import { useHotkeys } from '@/lib/hotkeys';
 import { activeFilterCount, filterTasks, groupTasks, sortTasks } from '@/domain/query';
 import { dueBucket } from '@/domain/dates';
 import type { ID, Priority } from '@/domain/types';
-import { useWorkspace } from '@/hooks/data';
+import { useWorkspace, useActiveTimer } from '@/hooks/data';
+import { trackingActions } from '@/features/tracking/actions';
 import { openDependencies } from '@/domain/dependencies';
 import { taskRef } from '@/domain/constants';
 import { Button } from '@/ui/Button';
@@ -34,6 +35,7 @@ export function TasksPage() {
     return m;
   }, [tasks]);
   const { filter, sort, group, setFilter, clearFacets } = useTaskView();
+  const timer = useActiveTimer();
   const openCreate = useUI((s) => s.openCreate);
   const openEdit = useUI((s) => s.openEdit);
   const [selectedId, setSelectedId] = useState<ID | null>(null);
@@ -106,6 +108,7 @@ export function TasksPage() {
       end: () => flat.length && setSelectedId(flat[flat.length - 1].id),
       enter: withSelected(openEdit),
       e: withSelected(openEdit),
+      s: withSelected((id) => void trackingActions.toggle(id)),
       x: withSelected((id) => {
         const willHide = filter.status !== 'all';
         if (willHide) setSelectedId(neighbour());
@@ -202,6 +205,7 @@ export function TasksPage() {
           schedule={schedule}
           now={now}
           waiting={waiting}
+          timingId={timer?.taskId ?? null}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onOpen={openEdit}

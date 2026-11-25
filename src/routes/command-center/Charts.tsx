@@ -3,8 +3,10 @@ import { format } from 'date-fns';
 import { Bar, BarChart, CartesianGrid, ComposedChart, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
 import { BarChart3, Target } from 'lucide-react';
 import { formatDuration } from '@/lib/format';
-import { Panel, PanelHeader, SampleTag, SegmentedControl } from '@/ui/Data';
-import { focusWeek } from '@/data/sample';
+import { Panel, PanelHeader, SegmentedControl } from '@/ui/Data';
+import { addDays, startOfWeek } from 'date-fns';
+import type { TimeBlock, WorkSession } from '@/domain/types';
+import { startOfLocalDay } from '@/domain/schedule';
 import type { DayLoadRow as LoadDay } from '@/domain/forecast';
 
 const axisTick = { fill: 'var(--color-fg-subtle)', fontSize: 11, fontFamily: 'var(--font-mono)' };
@@ -205,20 +207,38 @@ function FocusTooltip({
   const d = payload[0].payload;
   return (
     <TooltipShell title={d.dow}>
-      <Row color="var(--color-fg-faint)" label="Planned" value={formatDuration(d.planned)} />
-      <Row color="var(--color-deep)" label="Actual" value={d.actual === null ? '—' : formatDuration(d.actual)} />
+      <Row color="var(--color-fg-faint)" label="Scheduled" value={formatDuration(d.planned)} />
+      <Row color="var(--color-deep)" label="Tracked" value={d.actual === null ? '—' : formatDuration(d.actual)} />
     </TooltipShell>
   );
 }
 
-export function FocusWeekPanel() {
-  const logged = focusWeek.filter((d) => d.actual !== null);
+/** Planned (task blocks) vs tracked (sessions) focus time per weekday, this week. */
+function focusWeek(blocks: readonly TimeBlock[], sessions: readonly WorkSession[], now: number) {
+  const monday = startOfWeek(now, { weekStartsOn: 1 });
+  const today = startOfLocalDay(now).getTime();
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = addDays(monday, i);
+    const s = d.getTime();
+    const e = addDays(d, 1).getTime();
+    const clip = (x: { start: number; end: number }) => Math.max(0, Math.min(x.end, e) - Math.max(x.start, s)) / 60_000;
+    return {
+      dow: format(d, 'EEE'),
+      planned: Math.round(blocks.filter((b) => b.kind === 'task').reduce((a, b) => a + clip(b), 0)),
+      actual: s > today ? null : Math.round(sessions.reduce((a, x) => a + clip(x), 0)),
+    };
+  });
+}
+
+export function FocusWeekPanel({ blocks, sessions, now }: { blocks: readonly TimeBlock[]; sessions: readonly WorkSession[]; now: number }) {
+  const data = focusWeek(blocks, sessions, now);
+  const logged = data.filter((d) => d.actual !== null);
   const planned = logged.reduce((a, d) => a + d.planned, 0);
   const actual = logged.reduce((a, d) => a + (d.actual ?? 0), 0);
 
   return (
     <Panel>
-      <PanelHeader title="Deep work this week" icon={Target} actions={<SampleTag />} />
+      <PanelHeader title="Focus time this week" icon={Target} />
       <div className="flex items-end justify-between gap-4 px-3.5 pt-3">
         <div>
           <div className="flex items-baseline gap-1.5">
@@ -226,13 +246,19 @@ export function FocusWeekPanel() {
             <span className="num text-xs text-fg-subtle">/ {formatDuration(planned, { compact: true })} planned</span>
           </div>
           <span className="mt-1.5 block text-xs text-fg-subtle">
-            <span className="num text-fg-muted">{Math.round((actual / planned) * 100)}%</span> of planned focus time done so far
+            {planned > 0 ? (
+              <>
+                <span className="num text-fg-muted">{Math.round((actual / planned) * 100)}%</span> of planned focus time tracked so far
+              </>
+            ) : (
+              'Nothing planned yet this week'
+            )}
           </span>
         </div>
       </div>
       <div className="min-h-[150px] flex-1 px-1.5 pb-1 pt-1">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={focusWeek} margin={{ top: 12, right: 12, bottom: 0, left: 0 }} barGap={2} barCategoryGap="30%">
+          <BarChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: 0 }} barGap={2} barCategoryGap="30%">
             <CartesianGrid vertical={false} stroke="var(--color-line)" />
             <XAxis dataKey="dow" tickLine={false} axisLine={{ stroke: 'var(--color-line-strong)' }} tick={{ ...axisTick, fontFamily: 'var(--font-sans)' }} />
             <YAxis tickLine={false} axisLine={false} tick={axisTick} width={36} ticks={[0, 120, 240, 360]} tickFormatter={(v: number) => `${v / 60}h`} />

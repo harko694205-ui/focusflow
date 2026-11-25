@@ -1,8 +1,4 @@
-/**
- * Illustrative data for views whose real data source arrives in later phases:
- * focus history, which needs time tracking (Insights phase).
- * Everything else — tasks, schedule, load — comes from IndexedDB.
- */
+/** Shared view types for the Command Center (all data comes from IndexedDB). */
 
 export type Energy = 'deep' | 'shallow' | 'admin';
 
@@ -17,11 +13,3 @@ export interface SampleBlock {
   color?: string;
   category?: string;
 }
-
-export const focusWeek = [
-  { dow: 'Mon', planned: 270, actual: 245 },
-  { dow: 'Tue', planned: 300, actual: 205 },
-  { dow: 'Wed', planned: 240, actual: 95 },
-  { dow: 'Thu', planned: 300, actual: null },
-  { dow: 'Fri', planned: 180, actual: null },
-];

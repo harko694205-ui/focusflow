@@ -38,10 +38,10 @@ export const blockActions = {
   move: (id: ID, start: Instant, end: Instant) =>
     run(
       () => svc.updateBlock(id, { start, end }),
-      ({ before, after }) =>
+      ({ before, after, taskBefore }) =>
         before.start === after.start && before.end === after.end
           ? null
-          : { message: '', undo: { label: 'move', run: () => svc.restoreBlocks([before]) } },
+          : { message: '', undo: { label: 'move', run: () => svc.restoreMove(before, taskBefore) } },
     ),
 
   rename: (id: ID, title: string) =>

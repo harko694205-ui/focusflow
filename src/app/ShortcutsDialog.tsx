@@ -25,6 +25,7 @@ const sections: Array<{ title: string; items: Array<[keys: string[][], label: st
       [[['K'], ['↑']], 'Previous task'],
       [[['E'], ['↵']], 'Edit'],
       [[['X']], 'Complete / reopen'],
+      [[['S']], 'Start / stop focus timer'],
       [[['1'], ['4']], 'Set priority (Urgent → Low)'],
       [[[MOD, 'D']], 'Duplicate'],
       [[['Del']], 'Delete'],

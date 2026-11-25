@@ -6,6 +6,7 @@ import { run } from '@/app/commands';
 import { taskRef } from '@/domain/constants';
 import type { ID, Priority, Task, TaskDraft } from '@/domain/types';
 import * as svc from '@/services/taskService';
+import { deleteSessions } from '@/services/timeService';
 
 export { undoLast } from '@/app/commands';
 
@@ -59,18 +60,34 @@ export const taskActions = {
   remove: (ids: ID[]) =>
     run(
       () => svc.deleteTasks(ids),
-      ({ tasks, blocks }) =>
+      ({ tasks, blocks, sessions }) =>
         tasks.length === 0
           ? null
           : {
               message:
                 (tasks.length === 1 ? `Deleted ${taskRef(tasks[0].seq)} · ${quote(tasks[0])}` : `Deleted ${tasks.length} tasks`) +
                 (blocks.length ? ` and ${blocks.length} scheduled block${blocks.length === 1 ? '' : 's'}` : ''),
-              undo: { label: 'delete', run: () => svc.restoreTasks(tasks, blocks) },
+              undo: { label: 'delete', run: () => svc.restoreTasks(tasks, blocks, sessions) },
             },
     ),
 
   createCategory: (name: string) => run(() => svc.createCategory(name), (c) => ({ message: `Category “${c.name}” ready` })),
+
+  /** Generated history so Insights has data; undo removes exactly what was added. */
+  addSampleHistory: () =>
+    run(
+      () => svc.addSampleHistory(),
+      (r) => ({
+        message: `Added ${r.taskIds.length} finished tasks with tracked time`,
+        undo: {
+          label: 'sample history',
+          run: async () => {
+            await svc.deleteTasks(r.taskIds);
+            await deleteSessions(r.sessionIds);
+          },
+        },
+      }),
+    ),
 
   loadDemo: () => run(() => svc.loadDemoData(), () => ({ message: 'Demo workspace loaded' })),
   clearAll: () => run(() => svc.clearTasks(), () => ({ message: 'All tasks cleared' })),

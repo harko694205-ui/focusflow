@@ -8,7 +8,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { computeRisk, type TaskRisk } from '@/domain/risk';
 import { scheduleByTask } from '@/domain/schedule';
-import type { Category, ID, Task, TimeBlock } from '@/domain/types';
+import type { ActiveTimer, Category, ID, Task, TimeBlock, WorkSession } from '@/domain/types';
 
 export function useTasks(): Task[] | undefined {
   return useLiveQuery(() => db.tasks.toArray(), []);
@@ -86,3 +86,23 @@ export function useWorkspace() {
 }
 
 export type Workspace = ReturnType<typeof useWorkspace>;
+
+const EMPTY_SESSIONS: WorkSession[] = [];
+
+/** All tracked work sessions. */
+export function useSessions(): WorkSession[] | undefined {
+  return useLiveQuery(() => db.sessions.toArray(), []);
+}
+
+/** Sessions for one task, newest first. */
+export function useTaskSessions(taskId: ID | null | undefined): WorkSession[] | undefined {
+  return useLiveQuery(
+    async () => (taskId ? (await db.sessions.where('taskId').equals(taskId).toArray()).sort((a, b) => b.start - a.start) : EMPTY_SESSIONS),
+    [taskId],
+  );
+}
+
+/** The running focus timer, or null. `undefined` while loading. */
+export function useActiveTimer(): ActiveTimer | null | undefined {
+  return useLiveQuery(async () => ((await db.meta.get('activeTimer'))?.value as ActiveTimer | undefined) ?? null, []);
+}

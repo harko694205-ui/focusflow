@@ -5,10 +5,13 @@
  */
 import { db } from '@/db/db';
 import { buildDemoBlocks, buildSeed } from '@/db/seed';
+import { buildDemoHistory, buildDemoTracking } from '@/db/history';
 import { CATEGORY_COLOR_VALUES, LIMITS } from '@/domain/constants';
 import { isValid, validateDraft } from '@/domain/validation';
 import { validateDependencies } from '@/domain/dependencies';
-import type { Category, CategoryColor, ID, Task, TaskDraft, TaskStatus, TimeBlock } from '@/domain/types';
+import type { Category, CategoryColor, ID, Task, TaskDraft, TaskStatus, TimeBlock, WorkSession } from '@/domain/types';
+import { startOfLocalDay } from '@/domain/schedule';
+import { closeTimer } from './timeService';
 
 export class ValidationError extends Error {
   constructor(public errors: Record<string, string>) {
@@ -84,7 +87,7 @@ export async function createTask(draft: TaskDraft): Promise<Task> {
 
 /** Partial update. Returns the task before and after, so callers can offer undo. */
 export async function updateTask(id: ID, patch: Partial<TaskDraft>): Promise<{ before: Task; after: Task }> {
-  return db.transaction('rw', db.tasks, async () => {
+  return db.transaction('rw', db.tasks, db.meta, db.sessions, async () => {
     const before = await db.tasks.get(id);
     if (!before) throw new Error('Task not found');
     const merged = normalize({ ...before, ...patch });
@@ -93,14 +96,19 @@ export async function updateTask(id: ID, patch: Partial<TaskDraft>): Promise<{ b
     if (!isValid(errors)) throw new ValidationError(errors);
     const t = now();
     const status = merged.status ?? before.status;
+    // Pushing an open task's deadline to a later day counts as a postponement (Insights).
+    const pushed = before.status !== 'done' && startOfLocalDay(merged.deadline).getTime() > startOfLocalDay(before.deadline).getTime();
     const after: Task = {
       ...before,
       ...merged,
       status,
+      ...(pushed ? { postponed: (before.postponed ?? 0) + 1, firstDeadline: before.firstDeadline ?? before.deadline } : {}),
       updatedAt: t,
       completedAt: status === 'done' ? (before.status === 'done' ? before.completedAt : t) : null,
     };
     await db.tasks.put(after);
+    // Finishing a task stops its focus timer and keeps the time.
+    if (status === 'done' && before.status !== 'done') await closeTimer(t, id);
     return { before, after };
   });
 }
@@ -137,21 +145,27 @@ export async function duplicateTask(id: ID): Promise<Task> {
  * Deletes tasks and their scheduled blocks in one transaction.
  * Returns everything removed so the deletion can be undone exactly.
  */
-export async function deleteTasks(ids: ID[]): Promise<{ tasks: Task[]; blocks: TimeBlock[] }> {
-  return db.transaction('rw', db.tasks, db.blocks, async () => {
+export async function deleteTasks(ids: ID[]): Promise<{ tasks: Task[]; blocks: TimeBlock[]; sessions: WorkSession[] }> {
+  return db.transaction('rw', db.tasks, db.blocks, db.sessions, db.meta, async () => {
     const tasks = (await db.tasks.bulkGet(ids)).filter((t): t is Task => !!t);
     const blocks = await db.blocks.where('taskId').anyOf(ids).toArray();
+    const sessions = await db.sessions.where('taskId').anyOf(ids).toArray();
+    for (const id of ids) await closeTimer(now(), id);
     await db.blocks.bulkDelete(blocks.map((b) => b.id));
+    await db.sessions.bulkDelete(sessions.map((s) => s.id));
+    // A timer that was just stopped may have added a session for a deleted task.
+    await db.sessions.where('taskId').anyOf(ids).delete();
     await db.tasks.bulkDelete(ids);
-    return { tasks, blocks };
+    return { tasks, blocks, sessions };
   });
 }
 
-/** Re-insert exact task (and block) records — undo of delete/update. */
-export async function restoreTasks(tasks: Task[], blocks: TimeBlock[] = []): Promise<void> {
-  await db.transaction('rw', db.tasks, db.blocks, async () => {
+/** Re-insert exact task (block and session) records — undo of delete/update. */
+export async function restoreTasks(tasks: Task[], blocks: TimeBlock[] = [], sessions: WorkSession[] = []): Promise<void> {
+  await db.transaction('rw', db.tasks, db.blocks, db.sessions, async () => {
     await db.tasks.bulkPut(tasks);
     if (blocks.length) await db.blocks.bulkPut(blocks);
+    if (sessions.length) await db.sessions.bulkPut(sessions);
   });
 }
 
@@ -187,24 +201,53 @@ export async function createCategory(name: string, color?: CategoryColor): Promi
 
 /** Remove all tasks and the schedule (categories are kept so the user can start fresh). */
 export async function clearTasks(): Promise<void> {
-  await db.transaction('rw', db.tasks, db.blocks, db.meta, async () => {
+  await db.transaction('rw', db.tasks, db.blocks, db.sessions, db.meta, async () => {
     await db.tasks.clear();
     await db.blocks.clear();
+    await db.sessions.clear();
+    await db.meta.delete('activeTimer');
     await db.meta.put({ key: 'taskSeq', value: 0 });
   });
 }
 
-/** Replace the workspace with demo data, including a demo schedule. */
+/** Replace the workspace with demo data, including a demo schedule and tracked history. */
 export async function loadDemoData(): Promise<void> {
   const t = now();
   const { categories, tasks } = buildSeed(t);
   const blocks = buildDemoBlocks(tasks, t);
-  await db.transaction('rw', db.tasks, db.categories, db.blocks, db.meta, async () => {
+  const history = buildDemoHistory(t, tasks.length, categories.map((c) => c.id));
+  await db.transaction('rw', db.tasks, db.categories, db.blocks, db.sessions, db.meta, async () => {
     await db.tasks.clear();
     await db.blocks.clear();
+    await db.sessions.clear();
+    await db.meta.delete('activeTimer');
     await db.categories.bulkPut(categories);
-    await db.tasks.bulkAdd(tasks);
-    await db.blocks.bulkAdd(blocks);
-    await db.meta.put({ key: 'taskSeq', value: tasks.length });
+    await db.tasks.bulkAdd([...tasks, ...history.tasks]);
+    await db.blocks.bulkAdd([...blocks, ...history.blocks]);
+    await db.sessions.bulkAdd([...history.sessions, ...buildDemoTracking(tasks, blocks, t)]);
+    await db.meta.put({ key: 'taskSeq', value: tasks.length + history.tasks.length });
+  });
+}
+
+/**
+ * Add generated history (finished tasks with tracked time) to the current workspace, so Insights
+ * has something to show before real history builds up. Existing tasks are untouched; past
+ * blocks of tasks with no tracked time get matching sessions. Returns what was added, for undo.
+ */
+export async function addSampleHistory(): Promise<{ taskIds: ID[]; sessionIds: ID[] }> {
+  const t = now();
+  return db.transaction('rw', db.tasks, db.categories, db.blocks, db.sessions, db.meta, async () => {
+    const categories = await db.categories.orderBy('order').toArray();
+    if (!categories.length) throw new ValidationError({ categoryId: 'Create a category first.' });
+    const seq = ((await db.meta.get('taskSeq'))?.value as number | undefined) ?? 0;
+    const history = buildDemoHistory(t, seq, categories.map((c) => c.id));
+    const [tasks, blocks, sessions] = await Promise.all([db.tasks.toArray(), db.blocks.toArray(), db.sessions.toArray()]);
+    const tracked = new Set(sessions.map((s) => s.taskId));
+    const tracking = buildDemoTracking(tasks.filter((x) => !tracked.has(x.id)), blocks, t);
+    await db.tasks.bulkAdd(history.tasks);
+    await db.blocks.bulkAdd(history.blocks);
+    await db.sessions.bulkAdd([...history.sessions, ...tracking]);
+    await db.meta.put({ key: 'taskSeq', value: seq + history.tasks.length });
+    return { taskIds: history.tasks.map((x) => x.id), sessionIds: tracking.map((s) => s.id) };
   });
 }

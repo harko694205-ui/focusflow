@@ -2,6 +2,7 @@
  * Comparing two schedules (original vs proposed) and planning how to apply the proposal to the
  * live schedule without clobbering anything that changed since the scenario was forked.
  */
+import { dayKey } from '@/domain/schedule';
 import type { ID, Task, TimeBlock } from '@/domain/types';
 import { STATUS_RANK, type Analysis, type PlanStatus, type Totals } from './analyze';
 import type { ScheduleSnapshot, ScheduleState } from './types';
@@ -206,6 +207,11 @@ export function planApply(baseline: ScheduleSnapshot, proposed: ScheduleState, l
     const p = propTasks.get(id)!;
     const patch: Partial<Task> = {};
     for (const f of fields) (patch as Record<string, unknown>)[f] = p[f];
+    // Applying a deadline pushed to a later day counts as a postponement (Insights).
+    if (patch.deadline !== undefined && cur.status !== 'done' && dayKey(patch.deadline) > dayKey(cur.deadline)) {
+      patch.postponed = (cur.postponed ?? 0) + 1;
+      patch.firstDeadline = cur.firstDeadline ?? cur.deadline;
+    }
     plan.putTasks.push({ ...cur, ...patch, updatedAt: now });
     plan.changeCount++;
   }
