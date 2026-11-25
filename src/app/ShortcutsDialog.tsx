@@ -47,6 +47,15 @@ const sections: Array<{ title: string; items: Array<[keys: string[][], label: st
     ],
   },
   {
+    title: 'Simulator',
+    items: [
+      [[['V']], 'Toggle edit / side-by-side'],
+      [[['↑'], ['↓']], 'Move selected block (in scenario)'],
+      [[['Del']], 'Remove block from scenario'],
+      [[[MOD, 'Z']], 'Undo last scenario change'],
+    ],
+  },
+  {
     title: 'Task editor',
     items: [
       [[[MOD, '↵']], 'Save'],

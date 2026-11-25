@@ -15,7 +15,7 @@ import { PX_PER_MIN } from './store';
 
 export type CardPlacement = 'right' | 'left' | 'inside';
 
-function CardShell({
+export function CardShell({
   top,
   placement,
   children,

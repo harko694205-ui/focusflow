@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { Category, Task, TimeBlock } from '@/domain/types';
+import type { Scenario } from '@/engine/types';
 import { buildDemoBlocks, buildSeed } from './seed';
 
 export interface MetaRow {
@@ -11,6 +12,7 @@ export class FocusFlowDB extends Dexie {
   tasks!: EntityTable<Task, 'id'>;
   categories!: EntityTable<Category, 'id'>;
   blocks!: EntityTable<TimeBlock, 'id'>;
+  scenarios!: EntityTable<Scenario, 'id'>;
   meta!: EntityTable<MetaRow, 'key'>;
 
   /** When false, a freshly created database starts empty (used by tests). */
@@ -34,6 +36,9 @@ export class FocusFlowDB extends Dexie {
         const blocks = buildDemoBlocks(tasks, Date.now());
         if (blocks.length) await tx.table('blocks').bulkAdd(blocks);
       });
+
+    // v3 — simulator scenarios (each carries its own frozen baseline snapshot).
+    this.version(3).stores({ scenarios: 'id, status, updatedAt' });
 
     // Runs exactly once, when the database is first created in this browser.
     this.on('populate', async (tx) => {

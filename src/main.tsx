@@ -11,6 +11,7 @@ import { PlaceholderPage } from './routes/Placeholder';
 import { DesignSystem } from './routes/DesignSystem';
 import { TasksPage } from './routes/Tasks';
 import { TimelinePage } from './routes/Timeline';
+import { SimulatorPage } from './routes/Simulator';
 
 const router = createBrowserRouter([
   {
@@ -20,7 +21,7 @@ const router = createBrowserRouter([
       { index: true, element: <CommandCenter /> },
       { path: 'timeline', element: <TimelinePage /> },
       { path: 'tasks', element: <TasksPage /> },
-      { path: 'simulator', element: <PlaceholderPage page="simulator" /> },
+      { path: 'simulator', element: <SimulatorPage /> },
       { path: 'insights', element: <PlaceholderPage page="insights" /> },
       { path: 'settings', element: <PlaceholderPage page="settings" /> },
       { path: 'design', element: <DesignSystem /> },

@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
 import { formatClock, formatDuration } from '@/lib/format';
 import { taskRef } from '@/domain/constants';
 import type { TaskRisk } from '@/domain/risk';
-import { DAY_MINUTES, freeIntervals, minuteOfDay, workIntervals, type BlockLayout, subtractIntervals } from '@/domain/schedule';
+import { DAY_MINUTES, endMinuteOfDay, freeIntervals, minuteOfDay, workIntervals, type BlockLayout, subtractIntervals } from '@/domain/schedule';
 import type { Category, ID, Task, TimeBlock } from '@/domain/types';
 import { Tooltip } from '@/ui/Tooltip';
 import { BlockView } from './BlockView';
@@ -30,6 +30,13 @@ export interface DayColumnProps {
   register: (day: number, el: HTMLElement | null) => void;
   onBlockPointerDown: (block: TimeBlock, e: React.PointerEvent, mode: 'move' | 'resize-start' | 'resize-end') => void;
   onBackgroundPointerDown: (day: number, e: React.PointerEvent) => void;
+  /** Scenario diff: highlight changed blocks. */
+  diff?: Map<ID, 'added' | 'moved' | 'resized' | 'removed'>;
+  /** Original positions of changed/removed blocks, drawn as dashed outlines. */
+  ghosts?: Array<{ block: TimeBlock; kind: 'moved' | 'resized' | 'removed' }>;
+  /** Day off (scenario): no working hours, no free time. */
+  off?: boolean;
+  readOnly?: boolean;
   children?: React.ReactNode;
 }
 
@@ -43,9 +50,9 @@ const riskLine: Record<string, string> = {
 
 export const DayColumn = memo(function DayColumn(p: DayColumnProps) {
   const { day, isToday, isPast, nowMinute, blocks, layout, drag } = p;
-  const work = workIntervals(day);
+  const work = p.off ? [] : workIntervals(day);
   const off = subtractIntervals([{ start: 0, end: DAY_MINUTES }], work);
-  const showFree = !isPast;
+  const showFree = !isPast && !p.off;
   const free = showFree ? freeIntervals(day, blocks, { fromMinute: isToday ? nowMinute : undefined, minLength: 30 }) : [];
   const dragging = !!drag?.moved;
 
@@ -98,9 +105,34 @@ export const DayColumn = memo(function DayColumn(p: DayColumnProps) {
         );
       })}
 
+      {/* Scenario ghosts: where changed blocks used to be */}
+      {p.ghosts?.map(({ block: g, kind }) => {
+        const s = minuteOfDay(g.start);
+        const e = endMinuteOfDay(g.start, g.end);
+        const t = g.taskId ? p.taskMap.get(g.taskId) : undefined;
+        return (
+          <div
+            key={`ghost-${g.id}`}
+            className={cn(
+              'pointer-events-none absolute inset-x-1 z-[5] overflow-hidden rounded-xs border border-dashed px-1.5 py-0.5',
+              kind === 'removed' ? 'border-[rgb(229_83_75/0.55)] bg-negative-muted' : 'border-[rgb(124_131_255/0.45)] bg-[rgb(124_131_255/0.05)]',
+            )}
+            style={{ top: s * PX_PER_MIN, height: Math.max((e - s) * PX_PER_MIN - 1, 10) }}
+          >
+            {(e - s) * PX_PER_MIN >= 20 && (
+              <span className={cn('block truncate text-2xs', kind === 'removed' ? 'text-negative line-through' : 'text-fg-subtle')}>
+                {kind === 'removed' ? 'Removed · ' : 'Was here · '}
+                {g.kind === 'event' ? g.title : (t?.title ?? '')}
+              </span>
+            )}
+          </div>
+        );
+      })}
+
       {/* Blocks */}
       {blocks.map((b) => {
         const task = b.taskId ? p.taskMap.get(b.taskId) : undefined;
+        const change = p.diff?.get(b.id);
         return (
           <BlockView
             key={b.id}
@@ -113,6 +145,8 @@ export const DayColumn = memo(function DayColumn(p: DayColumnProps) {
             instant={b.id in p.pending}
             afterDeadline={!!task && task.status !== 'done' && b.end > task.deadline}
             past={b.end <= p.now}
+            highlight={change === 'removed' ? undefined : change}
+            readOnly={p.readOnly}
             onPointerDown={(e, mode) => p.onBlockPointerDown(b, e, mode)}
           />
         );

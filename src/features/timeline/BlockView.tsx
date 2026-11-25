@@ -21,6 +21,10 @@ export interface BlockViewProps {
   instant: boolean;
   afterDeadline: boolean;
   past: boolean;
+  /** Scenario diff highlight. */
+  highlight?: 'added' | 'moved' | 'resized';
+  /** Read-only rendering (no drag/resize handles). */
+  readOnly?: boolean;
   onPointerDown: (e: React.PointerEvent, mode: 'move' | 'resize-start' | 'resize-end') => void;
 }
 
@@ -34,6 +38,8 @@ export const BlockView = memo(function BlockView({
   instant,
   afterDeadline,
   past,
+  highlight,
+  readOnly,
   onPointerDown,
 }: BlockViewProps) {
   const start = minuteOfDay(block.start);
@@ -69,7 +75,7 @@ export const BlockView = memo(function BlockView({
           ? 'repeating-linear-gradient(-45deg, rgb(255 255 255 / 0.055) 0 3px, rgb(255 255 255 / 0.025) 3px 7px), var(--color-raised)'
           : `color-mix(in oklab, ${color} ${done ? 9 : 20}%, var(--color-panel))`,
       }}
-      onPointerDown={(e) => onPointerDown(e, 'move')}
+      onPointerDown={(e) => !readOnly && onPointerDown(e, 'move')}
       className={cn(
         'group/block absolute z-10 cursor-grab overflow-hidden rounded-xs border-l-2 text-left',
         'shadow-[0_1px_2px_rgb(0_0_0/0.4)] transition-[box-shadow,filter] duration-100 hover:brightness-110',
@@ -77,23 +83,28 @@ export const BlockView = memo(function BlockView({
         selected && 'z-20 ring-1 ring-accent shadow-[0_0_0_1px_var(--color-accent),0_6px_18px_-6px_rgb(0_0_0/0.7)]',
         conflict && !selected && 'ring-1 ring-[rgb(229_83_75/0.65)]',
         (past || done) && !selected && 'saturate-50',
+        readOnly && 'cursor-default',
+        highlight === 'added' && !selected && 'ring-1 ring-positive',
+        (highlight === 'moved' || highlight === 'resized') && !selected && 'ring-1 ring-accent',
       )}
     >
       {/* Resize handles */}
-      {!tiny && (
+      {!tiny && !readOnly && (
         <span
           onPointerDown={(e) => onPointerDown(e, 'resize-start')}
           className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize"
           aria-hidden
         />
       )}
-      <span
-        onPointerDown={(e) => onPointerDown(e, 'resize-end')}
-        className="absolute inset-x-0 bottom-0 z-10 flex h-2 cursor-ns-resize items-end justify-center pb-px"
-        aria-hidden
-      >
-        <span className="h-0.5 w-5 rounded-full bg-[rgb(255_255_255/0.35)] opacity-0 transition-opacity group-hover/block:opacity-100" />
-      </span>
+      {!readOnly && (
+        <span
+          onPointerDown={(e) => onPointerDown(e, 'resize-end')}
+          className="absolute inset-x-0 bottom-0 z-10 flex h-2 cursor-ns-resize items-end justify-center pb-px"
+          aria-hidden
+        >
+          <span className="h-0.5 w-5 rounded-full bg-[rgb(255_255_255/0.35)] opacity-0 transition-opacity group-hover/block:opacity-100" />
+        </span>
+      )}
 
       <div className={cn('flex h-full min-w-0 flex-col px-1.5', tiny ? 'justify-center py-0' : 'py-1')}>
         <div className="flex min-w-0 items-center gap-1">

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { ChevronDown, Download, GitBranch, HardDrive, Plus, Upload, Wand2 } from 'lucide-react';
@@ -16,7 +16,8 @@ import { Kbd } from '@/ui/Kbd';
 import { Meter } from '@/ui/Data';
 import { Skeleton } from '@/ui/Feedback';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, MenuLabel } from '@/ui/Menu';
-import { scenarios } from '@/data/sample';
+import { scenarioLateDelta, useScenarios } from '@/features/simulator/model';
+import { useSim } from '@/features/simulator/store';
 
 export function Logo({ size = 20 }: { size?: number }) {
   return (
@@ -35,6 +36,9 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const { pathname } = useLocation();
   const fileRef = useRef<HTMLInputElement>(null);
   const { tasks, categories, risk, now, loading } = useWorkspace();
+  const allScenarios = useScenarios();
+  const drafts = useMemo(() => (allScenarios ?? []).filter((s) => s.status === 'draft'), [allScenarios]);
+  const lateDeltas = useMemo(() => new Map(drafts.slice(0, 5).map((s) => [s.id, scenarioLateDelta(s, now)])), [drafts, now]);
 
   const summary = summarize(tasks, risk, now);
   const perCategory = categoryStats(tasks, categories, risk);
@@ -42,7 +46,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const capacity = summary.capacity7d;
   const badges: Record<string, number | undefined> = {
     '/tasks': loading ? undefined : summary.openCount,
-    '/simulator': scenarios.length,
+    '/simulator': drafts.length || undefined,
   };
 
   const onImport = async (file: File | undefined) => {
@@ -174,24 +178,42 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           <section>
             <h3 className="eyebrow flex h-6 items-center px-2">Draft scenarios</h3>
             <ul className="flex flex-col gap-px">
-              {scenarios.map((s) => (
-                <li key={s.id}>
+              {drafts.length === 0 && (
+                <li>
                   <NavLink
                     to="/simulator"
-                    className="focus-ring group flex h-7 items-center gap-2 rounded-sm px-2 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+                    className="focus-ring flex h-7 items-center gap-2 rounded-sm px-2 text-xs text-fg-subtle transition-colors hover:bg-hover hover:text-fg-muted"
                   >
-                    <GitBranch size={13} strokeWidth={1.75} className="shrink-0 text-fg-subtle" />
-                    <span className="flex-1 truncate">{s.name}</span>
-                    <span
-                      className={cn('num text-2xs', s.lateDelta > 0 ? 'text-negative' : 'text-positive')}
-                      title={`${s.lateDelta > 0 ? '+' : ''}${s.lateDelta} late tasks vs. baseline`}
-                    >
-                      {s.lateDelta > 0 ? '+' : '−'}
-                      {Math.abs(s.lateDelta)} late
-                    </span>
+                    <Plus size={12} /> Try a what-if scenario
                   </NavLink>
                 </li>
-              ))}
+              )}
+              {drafts.slice(0, 5).map((s) => {
+                const late = lateDeltas.get(s.id) ?? 0;
+                return (
+                  <li key={s.id}>
+                    <NavLink
+                      to="/simulator"
+                      onClick={() => useSim.getState().set({ scenarioId: s.id, selectedBlockId: null, creating: null })}
+                      className="focus-ring group flex h-7 items-center gap-2 rounded-sm px-2 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+                    >
+                      <GitBranch size={13} strokeWidth={1.75} className="shrink-0 text-fg-subtle" />
+                      <span className="flex-1 truncate">{s.name}</span>
+                      {late !== 0 ? (
+                        <span
+                          className={cn('num text-2xs', late > 0 ? 'text-negative' : 'text-positive')}
+                          title={`${late > 0 ? '+' : ''}${late} late tasks vs. your current schedule`}
+                        >
+                          {late > 0 ? '+' : '−'}
+                          {Math.abs(late)} late
+                        </span>
+                      ) : (
+                        <span className="num text-2xs text-fg-faint">{s.ops.length}Δ</span>
+                      )}
+                    </NavLink>
+                  </li>
+                );
+              })}
             </ul>
           </section>
 
