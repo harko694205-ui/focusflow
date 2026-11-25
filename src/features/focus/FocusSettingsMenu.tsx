@@ -45,14 +45,14 @@ export function FocusSettingsMenu() {
           sideOffset={6}
           className="z-50 w-[300px] rounded-md border border-line-strong bg-raised p-3.5 shadow-pop animate-pop-in"
         >
-          {settings && <SettingsBody settings={settings} />}
+          {settings && <FocusSettingsForm settings={settings} />}
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
   );
 }
 
-function SettingsBody({ settings: s }: { settings: FocusSettings }) {
+export function FocusSettingsForm({ settings: s }: { settings: FocusSettings }) {
   const [perm, setPerm] = useState(notificationPermission);
   const set = (patch: Partial<FocusSettings>) => void focusActions.settings(patch);
 

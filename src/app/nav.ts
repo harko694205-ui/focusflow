@@ -28,6 +28,12 @@ export const NAV: NavItem[] = [
   { to: '/settings', label: 'Settings', icon: Settings2, key: ',', description: 'Working hours, data and preferences' },
 ];
 
-export function navFor(pathname: string): NavItem {
-  return NAV.find((n) => (n.to === '/' ? pathname === '/' : pathname.startsWith(n.to))) ?? NAV[0];
+/** The nav item for a path, or undefined for paths outside the main nav (404, design system). */
+export function matchNav(pathname: string): NavItem | undefined {
+  return NAV.find((n) => (n.to === '/' ? pathname === '/' : pathname === n.to || pathname.startsWith(`${n.to}/`)));
+}
+
+/** Human page name for titles and the breadcrumb. */
+export function pageLabel(pathname: string): string {
+  return pathname === '/design' ? 'Design system' : (matchNav(pathname)?.label ?? 'Not found');
 }

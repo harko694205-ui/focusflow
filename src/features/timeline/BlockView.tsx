@@ -26,6 +26,8 @@ export interface BlockViewProps {
   /** Read-only rendering (no drag/resize handles). */
   readOnly?: boolean;
   onPointerDown: (e: React.PointerEvent, mode: 'move' | 'resize-start' | 'resize-end') => void;
+  /** Keyboard: Tab to a block selects it, then arrow keys move it (see the page's hotkeys). */
+  onSelect?: () => void;
 }
 
 export const BlockView = memo(function BlockView({
@@ -41,6 +43,7 @@ export const BlockView = memo(function BlockView({
   highlight,
   readOnly,
   onPointerDown,
+  onSelect,
 }: BlockViewProps) {
   const start = minuteOfDay(block.start);
   const end = endMinuteOfDay(block.start, block.end);
@@ -61,7 +64,8 @@ export const BlockView = memo(function BlockView({
     <motion.div
       data-block-id={block.id}
       role="button"
-      tabIndex={-1}
+      tabIndex={readOnly || !onSelect ? -1 : 0}
+      onFocus={() => !selected && onSelect?.()}
       aria-label={`${title}, ${formatClock(start)} to ${formatClock(end)}${conflict ? ', overlaps another block' : ''}`}
       aria-pressed={selected}
       initial={false}
@@ -77,7 +81,7 @@ export const BlockView = memo(function BlockView({
       }}
       onPointerDown={(e) => !readOnly && onPointerDown(e, 'move')}
       className={cn(
-        'group/block absolute z-10 cursor-grab overflow-hidden rounded-xs border-l-2 text-left',
+        'group/block focus-ring absolute z-10 cursor-grab overflow-hidden rounded-xs border-l-2 text-left',
         'shadow-[0_1px_2px_rgb(0_0_0/0.4)] transition-[box-shadow,filter] duration-100 hover:brightness-110',
         isEvent && 'border border-l-2 border-line-strong',
         selected && 'z-20 ring-1 ring-accent shadow-[0_0_0_1px_var(--color-accent),0_6px_18px_-6px_rgb(0_0_0/0.7)]',
@@ -123,11 +127,11 @@ export const BlockView = memo(function BlockView({
         {!tiny && (
           <span className="num flex min-w-0 items-center gap-1 truncate text-2xs leading-4 text-fg-subtle">
             {formatClock(start)}–{formatClock(end)}
-            {!compact && <span className="text-fg-faint">· {formatDuration(minutes, { compact: true })}</span>}
+            {!compact && <span className="text-fg-subtle">· {formatDuration(minutes, { compact: true })}</span>}
           </span>
         )}
         {minutes >= 75 && task && (
-          <span className="num mt-auto truncate text-2xs leading-4 text-fg-faint">
+          <span className="num mt-auto truncate text-2xs leading-4 text-fg-subtle">
             {taskRef(task.seq)} · {category?.name}
           </span>
         )}

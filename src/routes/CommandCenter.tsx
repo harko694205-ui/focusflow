@@ -16,9 +16,9 @@ export function CommandCenter() {
   const navigate = useNavigate();
   const ws = useWorkspace();
   const sessions = useSessions();
-  const summary = useMemo(() => summarize(ws.tasks, ws.risk, ws.now), [ws.tasks, ws.risk, ws.now]);
+  const summary = useMemo(() => summarize(ws.tasks, ws.risk, ws.now, ws.week), [ws.tasks, ws.risk, ws.now, ws.week]);
   const taskMap = useMemo(() => new Map(ws.tasks.map((t) => [t.id, t])), [ws.tasks]);
-  const forecast = useMemo(() => buildLoadForecast(ws.blocks, taskMap, ws.now, 14), [ws.blocks, taskMap, ws.now]);
+  const forecast = useMemo(() => buildLoadForecast(ws.blocks, taskMap, ws.now, 14, ws.week), [ws.blocks, taskMap, ws.now, ws.week]);
   const today = useMemo(
     () =>
       todayStrip(
@@ -30,7 +30,7 @@ export function CommandCenter() {
       ),
     [ws.blocks, taskMap, ws.categoryMap, ws.now],
   );
-  const workday = useMemo(() => workdayEnvelope(ws.now), [ws.now]);
+  const workday = useMemo(() => workdayEnvelope(ws.now, ws.week), [ws.now, ws.week]);
 
   return (
     <Page>

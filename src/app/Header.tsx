@@ -3,7 +3,7 @@ import { useLocation } from 'react-router';
 import { format } from 'date-fns';
 import { Menu as MenuIcon, PanelLeft, Plus, Search } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { navFor } from './nav';
+import { pageLabel } from './nav';
 import { useUI } from './store';
 import { Button, IconButton } from '@/ui/Button';
 import { Kbd, MOD } from '@/ui/Kbd';
@@ -21,7 +21,7 @@ function useClock() {
 
 export function Header() {
   const { pathname } = useLocation();
-  const item = pathname === '/design' ? { label: 'Design system', icon: null } : navFor(pathname);
+  const item = { label: pageLabel(pathname) };
   const toggleSidebar = useUI((s) => s.toggleSidebar);
   const setMobileNav = useUI((s) => s.setMobileNav);
   const setPalette = useUI((s) => s.setPalette);

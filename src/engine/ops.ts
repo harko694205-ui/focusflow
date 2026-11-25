@@ -4,7 +4,7 @@
  * sense — a block that's gone, an invalid span — are skipped and reported, never half-applied.
  */
 import { format } from 'date-fns';
-import { LIMITS, PRIORITIES, taskRef } from '@/domain/constants';
+import { LIMITS, PRIORITIES, taskRef, type WorkWeek } from '@/domain/constants';
 import { dayKey, durationMinutes, validateSpan } from '@/domain/schedule';
 import { formatDuration } from '@/lib/format';
 import type { Task, TimeBlock } from '@/domain/types';
@@ -26,7 +26,7 @@ function blockLabel(w: Working, b: TimeBlock): string {
   return t ? taskRef(t.seq) : 'block';
 }
 
-function applyOne(w: Working, stored: StoredOp): OpResult {
+function applyOne(w: Working, stored: StoredOp, week?: WorkWeek): OpResult {
   const { id, op } = stored;
   const skip = (label: string, reason: string): OpResult => ({ id, label, skipped: reason, affected: 0 });
 
@@ -99,7 +99,7 @@ function applyOne(w: Working, stored: StoredOp): OpResult {
     case 'autoplan': {
       const placed = autoplan(
         { tasks: [...w.tasks.values()], blocks: [...w.blocks.values()], offDays: [...w.offDays] },
-        { from: op.from, days: op.days, strategy: op.strategy, now: op.now, idPrefix: id },
+        { from: op.from, days: op.days, strategy: op.strategy, now: op.now, idPrefix: id, week },
       );
       for (const b of placed) w.blocks.set(b.id, b);
       const mins = placed.reduce((a, b) => a + durationMinutes(b), 0);
@@ -112,13 +112,14 @@ function applyOne(w: Working, stored: StoredOp): OpResult {
   }
 }
 
-export function applyOps(base: ScheduleState, ops: readonly StoredOp[]): { state: ScheduleState; results: OpResult[] } {
+/** `week`: working hours for any auto-planning op (default: the built-in week). */
+export function applyOps(base: ScheduleState, ops: readonly StoredOp[], week?: WorkWeek): { state: ScheduleState; results: OpResult[] } {
   const w: Working = {
     tasks: new Map(base.tasks.map((t) => [t.id, t])),
     blocks: new Map(base.blocks.map((b) => [b.id, b])),
     offDays: new Set(base.offDays ?? []),
   };
-  const results = ops.map((o) => applyOne(w, o));
+  const results = ops.map((o) => applyOne(w, o, week));
   return { state: { tasks: [...w.tasks.values()], blocks: [...w.blocks.values()], offDays: [...w.offDays].sort() }, results };
 }
 

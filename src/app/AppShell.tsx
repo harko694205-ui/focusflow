@@ -12,7 +12,7 @@ import { Header } from './Header';
 import { CommandPalette } from './CommandPalette';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { Toaster } from './toast';
-import { NAV } from './nav';
+import { NAV, pageLabel as labelFor } from './nav';
 import { isModalOpen, useUI } from './store';
 
 /**
@@ -92,8 +92,31 @@ export function AppShell() {
   }, []);
   useEffect(() => setMobileNav(false), [location.pathname, setMobileNav]);
 
+  // Each page gets a title, and after navigating, focus moves to the new page so keyboard and
+  // screen-reader users start there (not on the link they just used).
+  const mainRef = useRef<HTMLElement>(null);
+  // Compare paths rather than counting renders: StrictMode re-runs effects in development.
+  const lastPath = useRef(location.pathname);
+  const pageLabel = labelFor(location.pathname);
+  useEffect(() => {
+    document.title = `${pageLabel} · FocusFlow`;
+    if (lastPath.current === location.pathname) return; // first page load: leave focus alone
+    lastPath.current = location.pathname;
+    mainRef.current?.focus({ preventScroll: true });
+  }, [location.pathname, pageLabel]);
+
   return (
     <div className="flex h-dvh overflow-hidden bg-canvas">
+      <a
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          mainRef.current?.focus();
+        }}
+        className="sr-only z-[70] rounded-sm bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg focus:not-sr-only focus:fixed focus:left-3 focus:top-2"
+      >
+        Skip to content
+      </a>
       {/* Desktop sidebar */}
       <aside
         className={cn(
@@ -130,7 +153,13 @@ export function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
-        <main className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+        <main
+          id="main"
+          ref={mainRef}
+          tabIndex={-1}
+          aria-label={pageLabel}
+          className="min-h-0 flex-1 overflow-y-auto outline-none [scrollbar-gutter:stable]"
+        >
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}

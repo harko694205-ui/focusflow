@@ -1,6 +1,6 @@
 # FocusFlow — Architecture & Implementation Plan
 
-Status: **proposal, awaiting approval**. No application code has been written.
+Status: **implemented** (Phases 1–7). This was the original proposal; the code is the source of truth where they differ. See README.md for the current feature set.
 
 ---
 

@@ -55,6 +55,9 @@ export function FocusPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const last = useRef<F.FocusSession | null>(null);
   const ended = useRef(false);
+  useEffect(() => {
+    if (!session) document.title = 'Focus · FocusFlow';
+  }, [session]);
 
   // The session ending outside this page (task finished elsewhere, timer moved to another task)
   // still gets a summary.
@@ -152,8 +155,7 @@ function ActiveFocus({ session: s, onExit, onComplete }: { session: F.FocusSessi
   const trackedMs = (sessions ?? []).reduce((a, x) => a + (x.end - x.start), 0) + (s.phase === 'focus' && s.runStart !== null && !timerRecorded ? now - s.runStart : 0);
 
   useEffect(() => {
-    const prev = document.title;
-    return () => void (document.title = prev);
+    return () => void (document.title = 'Focus · FocusFlow');
   }, []);
   useEffect(() => {
     const what = onBreak ? 'Break' : task?.title ?? 'Focus';
@@ -294,7 +296,7 @@ function ActiveFocus({ session: s, onExit, onComplete }: { session: F.FocusSessi
           }
         />
       </dl>
-      <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-2xs text-fg-faint">
+      <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-2xs text-fg-subtle">
         <span className="flex items-center gap-1">
           <Kbd keys={['Space']} /> start / pause
         </span>

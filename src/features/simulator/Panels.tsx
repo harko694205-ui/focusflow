@@ -271,12 +271,12 @@ export function ChangeLog({
               exit={{ opacity: 0, height: 0 }}
               className="group flex items-start gap-2 rounded-sm px-2 py-1.5 hover:bg-hover"
             >
-              <span className="num mt-0.5 w-4 shrink-0 text-right text-2xs text-fg-faint">{i + 1}</span>
+              <span className="num mt-0.5 w-4 shrink-0 text-right text-2xs text-fg-subtle">{i + 1}</span>
               <Icon size={12} className={cn('mt-0.5 shrink-0', r?.skipped ? 'text-warning' : 'text-fg-subtle')} />
               <div className="min-w-0 flex-1">
                 <p className={cn('text-xs leading-4', r?.skipped ? 'text-fg-subtle line-through' : 'text-fg')}>{r?.label}</p>
                 {r?.skipped && <p className="text-2xs text-warning">Skipped — {r.skipped}</p>}
-                <p className="text-2xs text-fg-faint">{formatDistanceToNowStrict(o.at, { addSuffix: true })}</p>
+                <p className="text-2xs text-fg-subtle">{formatDistanceToNowStrict(o.at, { addSuffix: true })}</p>
               </div>
               {!readOnly && (
                 <IconButton

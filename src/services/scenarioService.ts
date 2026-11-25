@@ -8,6 +8,7 @@ import { db } from '@/db/db';
 import { applyOps, planApply, type ApplyConflict, type ApplyPlan } from '@/engine';
 import type { Scenario, ScenarioOp, ScheduleSnapshot, StoredOp } from '@/engine/types';
 import type { ID, Task, TimeBlock } from '@/domain/types';
+import { getWorkWeek } from './settingsService';
 
 export class ScenarioError extends Error {}
 export class ApplyConflictError extends Error {
@@ -152,11 +153,12 @@ export interface ApplyResult {
  * only the non-conflicting changes are written.
  */
 export async function applyScenario(id: ID, opts: { skipConflicts?: boolean } = {}): Promise<ApplyResult> {
-  return db.transaction('rw', db.tasks, db.blocks, db.scenarios, async () => {
+  return db.transaction('rw', [db.tasks, db.blocks, db.scenarios, db.meta], async () => {
     const s = await load(id);
     assertDraft(s);
-    const [tasks, blocks] = await Promise.all([db.tasks.toArray(), db.blocks.toArray()]);
-    const proposed = applyOps(s.baseline, s.ops).state;
+    const [tasks, blocks, week] = await Promise.all([db.tasks.toArray(), db.blocks.toArray(), getWorkWeek()]);
+    // Same working hours the simulator previewed with, so what you saw is what gets applied.
+    const proposed = applyOps(s.baseline, s.ops, week).state;
     const t = now();
     const plan = planApply(s.baseline, proposed, { tasks, blocks }, t);
     if (plan.conflicts.length && !opts.skipConflicts) throw new ApplyConflictError(plan.conflicts, plan);

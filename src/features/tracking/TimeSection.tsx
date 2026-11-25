@@ -109,7 +109,7 @@ export function TimeSection({ task }: { task: Task }) {
                     {format(s.start, 'HH:mm')}–{format(s.end, 'HH:mm')}
                   </span>
                   <span className="text-fg-subtle">{formatDuration(Math.round((s.end - s.start) / 60_000), { compact: true })}</span>
-                  <span className="text-2xs text-fg-faint">{s.source === 'timer' ? 'timer' : 'logged'}</span>
+                  <span className="text-2xs text-fg-subtle">{s.source === 'timer' ? 'timer' : 'logged'}</span>
                   <IconButton
                     icon={X}
                     size="sm"

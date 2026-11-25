@@ -63,6 +63,7 @@ export function TimelinePage() {
   const navDir = useTimeline((s) => s.navDir);
   const trayOpen = useTimeline((s) => s.trayOpen);
   const selectedId = useTimeline((s) => s.selectedId);
+  const selectBlock = useTimeline((s) => s.select);
   const creating = useTimeline((s) => s.creating);
   const drag = useTimeline((s) => s.drag);
   const pending = useTimeline((s) => s.pending);
@@ -361,10 +362,10 @@ export function TimelinePage() {
       const lay = layouts.get(dayKey(d))!;
       conflicts += [...lay.values()].filter((l) => l.overlaps.length).length;
       if (d.getTime() >= todayStart)
-        free += freeIntervals(d, list, { fromMinute: d.getTime() === todayStart ? nowMinute : undefined }).reduce((a, i) => a + i.end - i.start, 0);
+        free += freeIntervals(d, list, { week: ws.week, fromMinute: d.getTime() === todayStart ? nowMinute : undefined }).reduce((a, i) => a + i.end - i.start, 0);
     }
     return { scheduled, conflicts, free };
-  }, [days, byDay, layouts, todayStart, nowMinute]);
+  }, [days, byDay, layouts, todayStart, nowMinute, ws.week]);
 
   const candidates = useMemo(
     () =>
@@ -464,12 +465,12 @@ export function TimelinePage() {
               {/* Day headers */}
               <div className="sticky top-0 z-[45] grid border-b border-line bg-canvas/95 backdrop-blur-md" style={{ gridTemplateColumns: cols }}>
                 <div className="flex items-end justify-center pb-1.5">
-                  <span className="text-[10px] text-fg-faint">{format(now, 'O')}</span>
+                  <span className="text-[10px] text-fg-subtle">{format(now, 'O')}</span>
                 </div>
                 {days.map((d) => {
                   const k = dayKey(d);
                   const list = byDay.get(k) ?? [];
-                  const load = dayLoad(d, list);
+                  const load = dayLoad(d, list, ws.week);
                   const isToday = d.getTime() === todayStart;
                   const due = (deadlinesByDay.get(k) ?? []).filter((t) => t.status !== 'done');
                   const overlaps = [...(layouts.get(k)?.values() ?? [])].filter((l) => l.overlaps.length).length;
@@ -527,7 +528,7 @@ export function TimelinePage() {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-2xs text-fg-faint">Non-working day</span>
+                        <span className="text-2xs text-fg-subtle">Non-working day</span>
                       )}
                     </div>
                   );
@@ -573,6 +574,7 @@ export function TimelinePage() {
                   return (
                     <DayColumn
                       key={k}
+                      week={ws.week}
                       day={day}
                       isToday={day === todayStart}
                       isPast={day < todayStart}
@@ -591,6 +593,7 @@ export function TimelinePage() {
                       register={register}
                       onBlockPointerDown={onBlockPointerDown}
                       onBackgroundPointerDown={onBackgroundPointerDown}
+                      onSelectBlock={selectBlock}
                     >
                       <AnimatePresence>
                         {sel && !drag?.moved && (

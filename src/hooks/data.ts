@@ -3,13 +3,15 @@
  * in this tab or any other tab — so writes from the task service propagate everywhere.
  * `undefined` means "still loading".
  */
-import { normalizeSettings, type FocusSession, type FocusSettings } from '@/domain/focus';
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { computeRisk, type TaskRisk } from '@/domain/risk';
 import { scheduleByTask } from '@/domain/schedule';
 import type { ActiveTimer, Category, ID, Task, TimeBlock, WorkSession } from '@/domain/types';
+import { DEFAULT_WORK_WEEK, type WorkWeek } from '@/domain/constants';
+import { normalizeSettings, type FocusSession, type FocusSettings } from '@/domain/focus';
+import { readWorkWeek } from '@/domain/workweek';
 
 export function useTasks(): Task[] | undefined {
   return useLiveQuery(() => db.tasks.toArray(), []);
@@ -44,8 +46,8 @@ export function useCategoryMap(categories: Category[] | undefined): Map<ID, Cate
   return useMemo(() => new Map((categories ?? []).map((c) => [c.id, c])), [categories]);
 }
 
-export function useRisk(tasks: Task[] | undefined, now: number): Map<ID, TaskRisk> {
-  return useMemo(() => (tasks ? computeRisk(tasks, now) : new Map()), [tasks, now]);
+export function useRisk(tasks: Task[] | undefined, now: number, week: WorkWeek = DEFAULT_WORK_WEEK): Map<ID, TaskRisk> {
+  return useMemo(() => (tasks ? computeRisk(tasks, now, week) : new Map()), [tasks, now, week]);
 }
 
 
@@ -70,11 +72,14 @@ export function useWorkspace() {
   const categories = useCategories();
   const blocks = useBlocks();
   const now = useNow();
+  const stored = useWorkWeek();
+  const week = stored ?? DEFAULT_WORK_WEEK;
   const categoryMap = useCategoryMap(categories);
-  const risk = useRisk(tasks, now);
+  const risk = useRisk(tasks, now, week);
   const schedule = useMemo(() => scheduleByTask(blocks ?? EMPTY_BLOCKS, now), [blocks, now]);
-  const loading = tasks === undefined || categories === undefined || blocks === undefined;
+  const loading = tasks === undefined || categories === undefined || blocks === undefined || stored === undefined;
   return {
+    week,
     tasks: tasks ?? [],
     categories: categories ?? [],
     blocks: blocks ?? EMPTY_BLOCKS,
@@ -115,4 +120,12 @@ export function useFocusSession(): FocusSession | null | undefined {
 
 export function useFocusSettings(): FocusSettings | undefined {
   return useLiveQuery(async () => normalizeSettings((await db.meta.get('focusSettings'))?.value as Partial<FocusSettings> | undefined), []);
+}
+
+/** Working hours (live). `undefined` while loading. */
+export function useWorkWeek(): WorkWeek | undefined {
+  const raw = useLiveQuery(async () => ({ v: (await db.meta.get('workWeek'))?.value }), []);
+  const key = raw ? JSON.stringify(raw.v ?? null) : null;
+  // Stable identity while the stored value is unchanged, so memoized calculations don't rerun.
+  return useMemo(() => (key === null ? undefined : readWorkWeek(JSON.parse(key))), [key]);
 }

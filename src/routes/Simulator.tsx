@@ -108,9 +108,9 @@ export function SimulatorPage() {
   const range = useMemo(() => ({ from: days[0].getTime(), days: days.length }), [days]);
 
   const live = useMemo(() => (ws.loading ? undefined : { tasks: ws.tasks, blocks: ws.blocks }), [ws.loading, ws.tasks, ws.blocks]);
-  const model = useScenarioModel(scenario, live, range, now);
+  const model = useScenarioModel(scenario, live, range, now, ws.week);
 
-  const lateDelta = useMemo(() => new Map((scenarios ?? []).filter((s) => s.status === 'draft').map((s) => [s.id, scenarioLateDelta(s, now)])), [scenarios, now]);
+  const lateDelta = useMemo(() => new Map((scenarios ?? []).filter((s) => s.status === 'draft').map((s) => [s.id, scenarioLateDelta(s, now, ws.week)])), [scenarios, now, ws.week]);
 
   /* ---- Scenario lifecycle -------------------------------------------- */
 
@@ -278,8 +278,8 @@ export function SimulatorPage() {
 
   /* ---- Derived for rendering ----------------------------------------- */
 
-  const risk = useMemo(() => (model ? computeRisk([...model.proposed.tasks], now) : new Map()), [model, now]);
-  const riskBefore = useMemo(() => (model ? computeRisk([...model.original.tasks], now) : new Map()), [model, now]);
+  const risk = useMemo(() => (model ? computeRisk([...model.proposed.tasks], now, ws.week) : new Map()), [model, now, ws.week]);
+  const riskBefore = useMemo(() => (model ? computeRisk([...model.original.tasks], now, ws.week) : new Map()), [model, now, ws.week]);
   const proposedSchedule = useMemo(() => (model ? scheduleByTask([...model.proposed.blocks], now) : new Map()), [model, now]);
   const candidates = useMemo(
     () =>
@@ -331,6 +331,7 @@ export function SimulatorPage() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
         <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-2.5 md:px-5">
+          <h1 className="sr-only">Simulator · {scenario.name}</h1>
           <FlaskConical size={15} className="shrink-0 text-accent" />
           <ScenarioName key={scenario.id} name={scenario.name} readOnly={readOnly} onRename={(n) => void scenarioActions.rename(scenario.id, n)} />
           <span className="hidden text-xs text-fg-subtle md:inline">
@@ -482,6 +483,7 @@ export function SimulatorPage() {
               >
                 {sim.mode === 'edit' ? (
                   <SimCalendar
+                    week={ws.week}
                     label={
                       <>
                         <span className="font-medium text-fg">Proposed schedule</span>
@@ -508,6 +510,7 @@ export function SimulatorPage() {
                     register={register}
                     onBlockPointerDown={onBlockPointerDown}
                     onBackgroundPointerDown={onBackgroundPointerDown}
+                    onSelectBlock={(id) => sim.set({ selectedBlockId: id, creating: null })}
                     renderInColumn={(day, i) => (
                       <AnimatePresence>
                         {selected && startOfLocalDay(selected.start).getTime() === day && !drag?.moved && (
@@ -562,6 +565,7 @@ export function SimulatorPage() {
                 ) : (
                   <>
                     <SimCalendar
+                      week={ws.week}
                       label={
                         <>
                           <span className="font-medium text-fg">Original</span>
@@ -578,6 +582,7 @@ export function SimulatorPage() {
                     />
                     <div className="w-px shrink-0 bg-line-strong" />
                     <SimCalendar
+                      week={ws.week}
                       label={
                         <>
                           <span className="font-medium text-accent">Proposed</span>

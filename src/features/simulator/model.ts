@@ -17,6 +17,7 @@ import {
   type ScheduleState,
 } from '@/engine';
 import type { ID, Task, TimeBlock } from '@/domain/types';
+import type { WorkWeek } from '@/domain/constants';
 
 export function useScenarios(): Scenario[] | undefined {
   return useLiveQuery(() => db.scenarios.orderBy('updatedAt').reverse().toArray(), []);
@@ -48,13 +49,14 @@ export function useScenarioModel(
   live: ScheduleState | undefined,
   range: { from: number; days: number },
   now: number,
+  week: WorkWeek,
 ): ScenarioModel | null {
   return useMemo(() => {
     if (!scenario) return null;
     const original = scenario.baseline;
-    const { state: proposed, results } = applyOps(original, scenario.ops);
-    const before = analyze(original, range, now);
-    const after = analyze(proposed, range, now);
+    const { state: proposed, results } = applyOps(original, scenario.ops, week);
+    const before = analyze(original, range, now, week);
+    const after = analyze(proposed, range, now, week);
     return {
       original,
       proposed,
@@ -68,13 +70,13 @@ export function useScenarioModel(
       taskMap: new Map(proposed.tasks.map((t) => [t.id, t])),
       originalBlockMap: new Map(original.blocks.map((b) => [b.id, b])),
     };
-  }, [scenario, live, range.from, range.days, now]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scenario, live, range.from, range.days, now, week]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /** Late-task delta for a scenario over the next 14 days — used in compact summaries (sidebar). */
-export function scenarioLateDelta(s: Scenario, now: number): number {
+export function scenarioLateDelta(s: Scenario, now: number, week: WorkWeek): number {
   const range = { from: now, days: 14 };
-  const before = analyze(s.baseline, range, now).totals.lateTasks;
-  const after = analyze(applyOps(s.baseline, s.ops).state, range, now).totals.lateTasks;
+  const before = analyze(s.baseline, range, now, week).totals.lateTasks;
+  const after = analyze(applyOps(s.baseline, s.ops, week).state, range, now, week).totals.lateTasks;
   return after - before;
 }

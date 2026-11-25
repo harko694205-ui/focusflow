@@ -326,7 +326,7 @@ export function AccuracyPanel({ stats, categories }: { stats: AccuracyStats; cat
                   <span className="flex items-center gap-1.5 text-fg-muted">
                     <span className="size-2 rounded-[2px]" style={{ background: DIFF_COLOR[g.key] }} />
                     {DIFFICULTIES[g.key].label}
-                    <span className="num text-2xs text-fg-faint">{g.n}</span>
+                    <span className="num text-2xs text-fg-subtle">{g.n}</span>
                   </span>
                   <RatioBar ratio={g.ratio} />
                 </li>
@@ -341,7 +341,7 @@ export function AccuracyPanel({ stats, categories }: { stats: AccuracyStats; cat
                     <span className="flex min-w-0 items-center gap-1.5 text-fg-muted">
                       <span className="size-2 shrink-0 rounded-full" style={{ background: categoryColor(c) }} />
                       <span className="truncate">{c?.name ?? 'Deleted category'}</span>
-                      <span className="num text-2xs text-fg-faint">{g.n}</span>
+                      <span className="num text-2xs text-fg-subtle">{g.n}</span>
                     </span>
                     <RatioBar ratio={g.ratio} />
                   </li>

@@ -1,16 +1,15 @@
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
-import { ChevronDown, Download, GitBranch, HardDrive, Plus, Upload, Wand2 } from 'lucide-react';
+import { ChevronDown, Download, GitBranch, HardDrive, Plus, Settings2, Upload, Wand2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { formatDuration } from '@/lib/format';
 import { categoryStats, summarize } from '@/domain/stats';
 import { useWorkspace } from '@/hooks/data';
-import { exportWorkspace, importWorkspace } from '@/services/backup';
+import { settingsActions } from '@/features/settings/actions';
 import { CategorySwatch } from '@/features/tasks/TaskMeta';
 import { NAV } from './nav';
 import { useUI } from './store';
-import { toast } from './toast';
 import { Tooltip } from '@/ui/Tooltip';
 import { Kbd } from '@/ui/Kbd';
 import { Meter } from '@/ui/Data';
@@ -34,13 +33,12 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const setMobileNav = useUI((s) => s.setMobileNav);
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const { tasks, categories, risk, now, loading } = useWorkspace();
+  const { tasks, categories, risk, now, week, loading } = useWorkspace();
   const allScenarios = useScenarios();
   const drafts = useMemo(() => (allScenarios ?? []).filter((s) => s.status === 'draft'), [allScenarios]);
-  const lateDeltas = useMemo(() => new Map(drafts.slice(0, 5).map((s) => [s.id, scenarioLateDelta(s, now)])), [drafts, now]);
+  const lateDeltas = useMemo(() => new Map(drafts.slice(0, 5).map((s) => [s.id, scenarioLateDelta(s, now, week)])), [drafts, now, week]);
 
-  const summary = summarize(tasks, risk, now);
+  const summary = summarize(tasks, risk, now, week);
   const perCategory = categoryStats(tasks, categories, risk);
   const booked = summary.dueSoonMinutes;
   const capacity = summary.capacity7d;
@@ -49,17 +47,6 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
     '/simulator': drafts.length || undefined,
   };
 
-  const onImport = async (file: File | undefined) => {
-    if (!file) return;
-    try {
-      const n = await importWorkspace(await file.text());
-      toast(`Imported ${n} tasks`);
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Import failed', { tone: 'error' });
-    } finally {
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  };
   return (
     <nav
       aria-label="Primary"
@@ -86,17 +73,15 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           </MenuTrigger>
           <MenuContent className="w-56">
             <MenuLabel>Local workspace</MenuLabel>
-            <MenuItem
-              icon={Download}
-              onSelect={async () => {
-                const n = await exportWorkspace();
-                toast(`Exported ${n} tasks to JSON`);
-              }}
-            >
-              Export data…
+            <MenuItem icon={Download} onSelect={() => void settingsActions.exportBackup()}>
+              Export backup
             </MenuItem>
-            <MenuItem icon={Upload} onSelect={() => fileRef.current?.click()}>
-              Import data…
+            {/* Importing replaces everything, so it goes through Settings, which confirms first. */}
+            <MenuItem icon={Upload} onSelect={() => navigate('/settings#data')}>
+              Import backup…
+            </MenuItem>
+            <MenuItem icon={Settings2} onSelect={() => navigate('/settings')}>
+              Settings
             </MenuItem>
             <MenuSeparator />
             <MenuItem icon={Wand2} onSelect={() => navigate('/design')}>
@@ -208,7 +193,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
                           {Math.abs(late)} late
                         </span>
                       ) : (
-                        <span className="num text-2xs text-fg-faint">{s.ops.length}Δ</span>
+                        <span className="num text-2xs text-fg-subtle">{s.ops.length}Δ</span>
                       )}
                     </NavLink>
                   </li>
@@ -277,13 +262,6 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           </div>
         )}
       </div>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="application/json,.json"
-        className="hidden"
-        onChange={(e) => void onImport(e.target.files?.[0])}
-      />
     </nav>
   );
 }

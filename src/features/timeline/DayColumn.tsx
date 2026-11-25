@@ -7,6 +7,7 @@ import { taskRef } from '@/domain/constants';
 import type { TaskRisk } from '@/domain/risk';
 import { DAY_MINUTES, endMinuteOfDay, freeIntervals, minuteOfDay, workIntervals, type BlockLayout, subtractIntervals } from '@/domain/schedule';
 import type { Category, ID, Task, TimeBlock } from '@/domain/types';
+import type { WorkWeek } from '@/domain/constants';
 import { Tooltip } from '@/ui/Tooltip';
 import { BlockView } from './BlockView';
 import { PX_PER_MIN, type CreateDraft, type DragState } from './store';
@@ -30,12 +31,16 @@ export interface DayColumnProps {
   register: (day: number, el: HTMLElement | null) => void;
   onBlockPointerDown: (block: TimeBlock, e: React.PointerEvent, mode: 'move' | 'resize-start' | 'resize-end') => void;
   onBackgroundPointerDown: (day: number, e: React.PointerEvent) => void;
+  /** Select a block from the keyboard (focus). */
+  onSelectBlock?: (id: ID) => void;
   /** Scenario diff: highlight changed blocks. */
   diff?: Map<ID, 'added' | 'moved' | 'resized' | 'removed'>;
   /** Original positions of changed/removed blocks, drawn as dashed outlines. */
   ghosts?: Array<{ block: TimeBlock; kind: 'moved' | 'resized' | 'removed' }>;
   /** Day off (scenario): no working hours, no free time. */
   off?: boolean;
+  /** Working hours (default: the built-in week). */
+  week?: WorkWeek;
   readOnly?: boolean;
   children?: React.ReactNode;
 }
@@ -50,10 +55,10 @@ const riskLine: Record<string, string> = {
 
 export const DayColumn = memo(function DayColumn(p: DayColumnProps) {
   const { day, isToday, isPast, nowMinute, blocks, layout, drag } = p;
-  const work = p.off ? [] : workIntervals(day);
+  const work = p.off ? [] : workIntervals(day, p.week);
   const off = subtractIntervals([{ start: 0, end: DAY_MINUTES }], work);
   const showFree = !isPast && !p.off;
-  const free = showFree ? freeIntervals(day, blocks, { fromMinute: isToday ? nowMinute : undefined, minLength: 30 }) : [];
+  const free = showFree ? freeIntervals(day, blocks, { week: p.week, fromMinute: isToday ? nowMinute : undefined, minLength: 30 }) : [];
   const dragging = !!drag?.moved;
 
   const ref = useCallback((el: HTMLDivElement | null) => p.register(day, el), [p.register, day]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -148,6 +153,7 @@ export const DayColumn = memo(function DayColumn(p: DayColumnProps) {
             highlight={change === 'removed' ? undefined : change}
             readOnly={p.readOnly}
             onPointerDown={(e, mode) => p.onBlockPointerDown(b, e, mode)}
+            onSelect={p.onSelectBlock ? () => p.onSelectBlock!(b.id) : undefined}
           />
         );
       })}

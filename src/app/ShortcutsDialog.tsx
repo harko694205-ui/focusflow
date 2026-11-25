@@ -79,7 +79,7 @@ export function ShortcutsDialog() {
               {s.items.map(([keys, label]) => (
                 <li key={label} className="flex h-7 items-center justify-between gap-4 text-sm">
                   <span className="text-fg-muted">{label}</span>
-                  <span className="flex items-center gap-1 text-2xs text-fg-faint">
+                  <span className="flex items-center gap-1 text-2xs text-fg-subtle">
                     {keys.map((k, i) => (
                       <span key={i} className="flex items-center gap-1">
                         {i > 0 && (s.title === 'Task list' && label.startsWith('Set') ? '–' : '/')}

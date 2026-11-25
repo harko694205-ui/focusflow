@@ -17,7 +17,7 @@ export function useLivePlan(): SchedulePlan | undefined {
     () =>
       ws.loading
         ? undefined
-        : planSchedule({ tasks: ws.tasks, blocks: ws.blocks }, { from: startOfLocalDay(ws.now).getTime(), days: PLAN_DAYS, now: ws.now, idPrefix: 'rec' }),
-    [ws.loading, ws.tasks, ws.blocks, ws.now],
+        : planSchedule({ tasks: ws.tasks, blocks: ws.blocks }, { from: startOfLocalDay(ws.now).getTime(), days: PLAN_DAYS, now: ws.now, idPrefix: 'rec', week: ws.week }),
+    [ws.loading, ws.tasks, ws.blocks, ws.now, ws.week],
   );
 }

@@ -199,6 +199,59 @@ export async function createCategory(name: string, color?: CategoryColor): Promi
   });
 }
 
+export async function updateCategory(id: ID, patch: { name?: string; color?: CategoryColor }): Promise<{ before: Category; after: Category }> {
+  return db.transaction('rw', db.categories, async () => {
+    const before = await db.categories.get(id);
+    if (!before) throw new Error('Category not found');
+    let name = before.name;
+    if (patch.name !== undefined) {
+      name = patch.name.trim().replace(/\s+/g, ' ');
+      if (!name) throw new ValidationError({ name: 'Name the category.' });
+      if (name.length > LIMITS.categoryNameMax) throw new ValidationError({ name: 'Name is too long.' });
+      const dupe = (await db.categories.toArray()).find((c) => c.id !== id && c.name.toLowerCase() === name.toLowerCase());
+      if (dupe) throw new ValidationError({ name: `“${dupe.name}” already exists.` });
+    }
+    if (patch.color !== undefined && !CATEGORY_COLOR_VALUES.includes(patch.color)) throw new Error('Unknown color');
+    const after: Category = { ...before, name, color: patch.color ?? before.color };
+    await db.categories.put(after);
+    return { before, after };
+  });
+}
+
+/**
+ * Delete a category. Its tasks (if any) move to `moveTo`, which is required then.
+ * Returns what changed so the deletion can be undone exactly.
+ */
+export async function deleteCategory(id: ID, moveTo?: ID): Promise<{ category: Category; moved: Task[] }> {
+  return db.transaction('rw', db.categories, db.tasks, async () => {
+    const category = await db.categories.get(id);
+    if (!category) throw new Error('Category not found');
+    if ((await db.categories.count()) <= 1) throw new Error('Keep at least one category.');
+    const moved = await db.tasks.where('categoryId').equals(id).toArray();
+    if (moved.length) {
+      if (!moveTo || moveTo === id || !(await db.categories.get(moveTo))) throw new Error('Choose where its tasks should go.');
+      const t = now();
+      await db.tasks.bulkPut(moved.map((x) => ({ ...x, categoryId: moveTo, updatedAt: t })));
+    }
+    await db.categories.delete(id);
+    return { category, moved };
+  });
+}
+
+/** Undo deleteCategory: the category comes back and its tasks return to it. */
+export async function restoreCategory(category: Category, moved: Task[]): Promise<void> {
+  await db.transaction('rw', db.categories, db.tasks, async () => {
+    await db.categories.put(category);
+    const still = (await db.tasks.bulkGet(moved.map((t) => t.id))).filter((t): t is Task => !!t);
+    const byId = new Map(moved.map((t) => [t.id, t]));
+    await db.tasks.bulkPut(still.map((t) => ({ ...t, categoryId: category.id, updatedAt: byId.get(t.id)!.updatedAt })));
+  });
+}
+
+export async function restoreCategoryEdit(before: Category): Promise<void> {
+  await db.categories.put(before);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Workspace                                                                  */
 /* -------------------------------------------------------------------------- */

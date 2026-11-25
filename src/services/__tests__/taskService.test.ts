@@ -207,3 +207,90 @@ describe('dependencies', () => {
     expect(await db.tasks.get(a.id)).toBeTruthy();
   });
 });
+
+describe('category management', () => {
+  it('renames and recolors; refuses empty or duplicate names', async () => {
+    const { before, after } = await svc.updateCategory('cat-a', { name: '  Client   work ', color: 'rose' });
+    expect(before.name).toBe('Work');
+    expect(after).toMatchObject({ name: 'Client work', color: 'rose' });
+    await expect(svc.updateCategory('cat-a', { name: ' ' })).rejects.toBeInstanceOf(svc.ValidationError);
+    await expect(svc.updateCategory('cat-a', { name: 'home' })).rejects.toThrow(/already exists/);
+    await svc.restoreCategoryEdit(before);
+    expect((await db.categories.get('cat-a'))!.name).toBe('Work');
+  });
+
+  it('deleting moves tasks to another category, and undo moves them back', async () => {
+    const a = await svc.createTask(draft({ title: 'A' }));
+    await expect(svc.deleteCategory('cat-a')).rejects.toThrow(/where its tasks/);
+    const r = await svc.deleteCategory('cat-a', 'cat-b');
+    expect(r.moved.map((t) => t.id)).toEqual([a.id]);
+    expect((await db.tasks.get(a.id))!.categoryId).toBe('cat-b');
+    expect(await db.categories.get('cat-a')).toBeUndefined();
+    await expect(svc.deleteCategory('cat-b')).rejects.toThrow(/at least one/);
+    await svc.restoreCategory(r.category, r.moved);
+    expect((await db.tasks.get(a.id))!.categoryId).toBe('cat-a');
+    expect(await db.categories.count()).toBe(2);
+  });
+
+  it('an empty category deletes without a destination', async () => {
+    await svc.deleteCategory('cat-b');
+    expect(await db.categories.count()).toBe(1);
+  });
+});
+
+describe('working hours', () => {
+  it('defaults, saves validated hours, and restores for undo', async () => {
+    const { getWorkWeek, setWorkWeek, restoreWorkWeek } = await import('../settingsService');
+    const { DEFAULT_WORK_WEEK } = await import('@/domain/constants');
+    expect(await getWorkWeek()).toEqual(DEFAULT_WORK_WEEK);
+    const week = { ...DEFAULT_WORK_WEEK, 6: [{ start: 600, end: 720 }] };
+    const r = await setWorkWeek(week);
+    expect(r.before).toBeNull();
+    expect((await getWorkWeek())[6]).toEqual([{ start: 600, end: 720 }]);
+    await expect(setWorkWeek({ ...week, 2: [{ start: 600, end: 500 }] })).rejects.toThrow(/Tuesday/);
+    await restoreWorkWeek(r.before);
+    expect(await getWorkWeek()).toEqual(DEFAULT_WORK_WEEK);
+  });
+});
+
+describe('backup v4', () => {
+  it('round-trips scenarios and preferences; older backups clear scenarios and keep preferences', async () => {
+    const { setWorkWeek, getWorkWeek } = await import('../settingsService');
+    const { updateFocusSettings, getFocusSettings } = await import('../focusService');
+    const { DEFAULT_WORK_WEEK } = await import('@/domain/constants');
+    const t = await svc.createTask(draft({ title: 'One' }));
+    await db.scenarios.add({
+      id: 'sc1',
+      name: 'Try Friday off',
+      status: 'draft',
+      baseline: { tasks: [t], blocks: [], takenAt: 1 },
+      ops: [{ id: 'op1', at: 1, op: { type: 'clearDay', day: Date.now() } }],
+      createdAt: 1,
+      updatedAt: 1,
+      appliedAt: null,
+    });
+    const week = { ...DEFAULT_WORK_WEEK, 5: [] };
+    await setWorkWeek(week);
+    await updateFocusSettings({ focus: 50 });
+    const backup = await buildBackup();
+    expect(backup.version).toBe(4);
+
+    await db.scenarios.clear();
+    await setWorkWeek(DEFAULT_WORK_WEEK);
+    await updateFocusSettings({ focus: 25 });
+    await importWorkspace(JSON.stringify(backup));
+    expect((await db.scenarios.get('sc1'))?.name).toBe('Try Friday off');
+    expect((await getWorkWeek())[5]).toEqual([]);
+    expect((await getFocusSettings()).focus).toBe(50);
+
+    // A v3 backup (no scenarios, no preferences).
+    const { scenarios: _s, preferences: _p, ...v3 } = backup;
+    await importWorkspace(JSON.stringify({ ...v3, version: 3 }));
+    expect(await db.scenarios.count()).toBe(0);
+    expect((await getWorkWeek())[5]).toEqual([]);
+
+    const broken = { ...backup, preferences: { workWeek: { 1: [{ start: 600, end: 500 }] } } };
+    await expect(importWorkspace(JSON.stringify(broken))).rejects.toThrow(/working hours/);
+    await expect(importWorkspace(JSON.stringify({ ...backup, scenarios: [{ id: 1 }] }))).rejects.toThrow(/scenarios/);
+  });
+});

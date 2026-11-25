@@ -28,7 +28,7 @@
   /* ---- Color: text ---- */
   --color-fg: #ededf0;
   --color-fg-muted: #a0a0ab;
-  --color-fg-subtle: #6a6a75;
+  --color-fg-subtle: #868692; /* ≥4.5:1 on every surface up to hover (WCAG AA small text) */
   --color-fg-faint: #4a4a53;
 
   /* ---- Color: accent + semantic ---- */
@@ -184,7 +184,9 @@
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important; /* no endless flicker (pulsing dots) */
       transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
 }

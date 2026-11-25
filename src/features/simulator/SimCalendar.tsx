@@ -6,6 +6,7 @@ import { formatDuration } from '@/lib/format';
 import { blocksByDay, dayKey, layoutBlocks, startOfLocalDay } from '@/domain/schedule';
 import type { TaskRisk } from '@/domain/risk';
 import type { Category, ID, Task, TimeBlock } from '@/domain/types';
+import type { WorkWeek } from '@/domain/constants';
 import type { DayMetrics, ScheduleDiff, ScheduleState } from '@/engine';
 import { Tooltip } from '@/ui/Tooltip';
 import { DayColumn } from '@/features/timeline/DayColumn';
@@ -14,6 +15,7 @@ import { GRID_HEIGHT, HOUR_PX, PX_PER_MIN, type CreateDraft, type DragState } fr
 export const SIM_GUTTER = 48;
 
 interface SimCalendarProps {
+  week: WorkWeek;
   label?: React.ReactNode;
   days: Date[];
   state: ScheduleState;
@@ -31,6 +33,7 @@ interface SimCalendarProps {
   register?: (day: number, el: HTMLElement | null) => void;
   onBlockPointerDown?: (block: TimeBlock, e: React.PointerEvent, mode: 'move' | 'resize-start' | 'resize-end') => void;
   onBackgroundPointerDown?: (day: number, e: React.PointerEvent) => void;
+  onSelectBlock?: (id: ID) => void;
   /** Rendered inside the column for that day (cards). */
   renderInColumn?: (day: number, dayIndex: number) => React.ReactNode;
   showGutter?: boolean;
@@ -177,9 +180,11 @@ export const SimCalendar = memo(function SimCalendar(p: SimCalendarProps) {
               register={p.register ?? noop}
               onBlockPointerDown={p.onBlockPointerDown ?? noop}
               onBackgroundPointerDown={p.onBackgroundPointerDown ?? noop}
+              onSelectBlock={p.readOnly ? undefined : p.onSelectBlock}
               diff={diffMap}
               ghosts={ghostsByDay.get(k)}
               off={metrics.find((m) => m.key === k)?.off}
+              week={p.week}
               readOnly={p.readOnly}
             >
               {p.renderInColumn?.(d.getTime(), i)}

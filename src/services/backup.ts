@@ -1,9 +1,23 @@
 import { db } from '@/db/db';
 import type { Category, Task, TimeBlock, WorkSession } from '@/domain/types';
+import type { WorkWeek } from '@/domain/constants';
+import type { Scenario } from '@/engine/types';
+import { normalizeSettings, type FocusSettings } from '@/domain/focus';
+import { normalizeWorkWeek } from '@/domain/workweek';
+import { WORK_WEEK_KEY } from './settingsService';
+import { FOCUS_SETTINGS_KEY } from './focusService';
 
 const FORMAT = 'focusflow-backup';
-/** v1: tasks + categories. v2: adds time blocks. v3: adds work sessions (time tracking). */
-const VERSION = 3;
+/**
+ * v1: tasks + categories. v2: adds time blocks. v3: adds work sessions (time tracking).
+ * v4: adds simulator scenarios and preferences (working hours, Focus Mode settings).
+ */
+const VERSION = 4;
+
+interface Preferences {
+  workWeek?: WorkWeek;
+  focusSettings?: FocusSettings;
+}
 
 interface Backup {
   format: typeof FORMAT;
@@ -13,11 +27,25 @@ interface Backup {
   tasks: Task[];
   blocks?: TimeBlock[];
   sessions?: WorkSession[];
+  scenarios?: Scenario[];
+  preferences?: Preferences;
 }
 
 export async function buildBackup(): Promise<Backup> {
-  const [categories, tasks, blocks, sessions] = await Promise.all([db.categories.toArray(), db.tasks.toArray(), db.blocks.toArray(), db.sessions.toArray()]);
-  return { format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), categories, tasks, blocks, sessions };
+  const [categories, tasks, blocks, sessions, scenarios, workWeek, focusSettings] = await Promise.all([
+    db.categories.toArray(),
+    db.tasks.toArray(),
+    db.blocks.toArray(),
+    db.sessions.toArray(),
+    db.scenarios.toArray(),
+    db.meta.get(WORK_WEEK_KEY),
+    db.meta.get(FOCUS_SETTINGS_KEY),
+  ]);
+  const preferences: Preferences = {
+    ...(workWeek ? { workWeek: workWeek.value as WorkWeek } : {}),
+    ...(focusSettings ? { focusSettings: focusSettings.value as FocusSettings } : {}),
+  };
+  return { format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), categories, tasks, blocks, sessions, scenarios, preferences };
 }
 
 /** Download the workspace as JSON. Returns the number of tasks exported. */
@@ -73,6 +101,23 @@ function isSession(s: unknown): s is WorkSession {
   return !!x && typeof x.id === 'string' && typeof x.taskId === 'string' && typeof x.start === 'number' && typeof x.end === 'number' && x.end > x.start;
 }
 
+function isScenario(s: unknown): s is Scenario {
+  const x = s as Scenario;
+  return (
+    !!x &&
+    typeof x.id === 'string' &&
+    typeof x.name === 'string' &&
+    ['draft', 'applied', 'discarded'].includes(x.status) &&
+    !!x.baseline &&
+    Array.isArray(x.baseline.tasks) &&
+    x.baseline.tasks.every(isTask) &&
+    Array.isArray(x.baseline.blocks) &&
+    x.baseline.blocks.every(isBlock) &&
+    Array.isArray(x.ops) &&
+    x.ops.every((o) => !!o && typeof o.id === 'string' && !!o.op && typeof o.op.type === 'string')
+  );
+}
+
 /** Replace the workspace with a backup. Validates everything before writing anything. */
 export async function importWorkspace(json: string): Promise<number> {
   let data: Backup;
@@ -89,6 +134,15 @@ export async function importWorkspace(json: string): Promise<number> {
   if (!Array.isArray(rawBlocks) || !rawBlocks.every(isBlock)) throw new Error('Backup contains malformed schedule blocks.');
   const rawSessions = data.sessions ?? [];
   if (!Array.isArray(rawSessions) || !rawSessions.every(isSession)) throw new Error('Backup contains malformed time entries.');
+  const scenarios = data.scenarios ?? [];
+  if (!Array.isArray(scenarios) || !scenarios.every(isScenario)) throw new Error('Backup contains malformed scenarios.');
+  let workWeek: WorkWeek | undefined;
+  try {
+    workWeek = data.preferences?.workWeek === undefined ? undefined : normalizeWorkWeek(data.preferences.workWeek);
+  } catch {
+    throw new Error('Backup contains malformed working hours.');
+  }
+  const focusSettings = data.preferences?.focusSettings === undefined ? undefined : normalizeSettings(data.preferences.focusSettings);
 
   const tasks = data.tasks.map((t) => ({ ...t, notes: t.notes ?? '', completedAt: t.completedAt ?? null }));
   const taskIds = new Set(tasks.map((t) => t.id));
@@ -100,11 +154,17 @@ export async function importWorkspace(json: string): Promise<number> {
     .filter((s) => taskIds.has(s.taskId))
     .map((s) => ({ ...s, source: s.source === 'timer' ? ('timer' as const) : ('manual' as const), createdAt: s.createdAt ?? s.end }));
 
-  await db.transaction('rw', db.tasks, db.categories, db.blocks, db.sessions, db.meta, async () => {
+  await db.transaction('rw', [db.tasks, db.categories, db.blocks, db.sessions, db.scenarios, db.meta], async () => {
     await db.tasks.clear();
     await db.categories.clear();
     await db.blocks.clear();
     await db.sessions.clear();
+    // Scenarios are snapshots of the old workspace; an older backup without them leaves none.
+    await db.scenarios.clear();
+    await db.scenarios.bulkAdd(scenarios);
+    // Preferences are only replaced when the backup carries them.
+    if (workWeek) await db.meta.put({ key: WORK_WEEK_KEY, value: workWeek });
+    if (focusSettings) await db.meta.put({ key: FOCUS_SETTINGS_KEY, value: focusSettings });
     await db.meta.delete('activeTimer');
     await db.meta.delete('focusSession');
     await db.categories.bulkAdd(data.categories);

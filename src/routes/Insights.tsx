@@ -23,8 +23,8 @@ export function InsightsPage() {
   const loading = ws.loading || sessions === undefined;
 
   const insights = useMemo(
-    () => (loading ? null : computeInsights({ tasks: ws.tasks, blocks: ws.blocks, sessions: sessions!, now: ws.now, weeks: Number(weeks) })),
-    [loading, ws.tasks, ws.blocks, sessions, ws.now, weeks],
+    () => (loading ? null : computeInsights({ tasks: ws.tasks, blocks: ws.blocks, sessions: sessions!, now: ws.now, weeks: Number(weeks), week: ws.week })),
+    [loading, ws.tasks, ws.blocks, sessions, ws.now, weeks, ws.week],
   );
   const facts = useMemo(() => (insights ? findings(insights, ws.categoryMap) : []), [insights, ws.categoryMap]);
   const hasHistory = !!insights && (insights.trackedTotal > 0 || insights.completion.due > 0 || insights.accuracy.rows.length > 0);
