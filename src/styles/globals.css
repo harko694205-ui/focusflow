@@ -1,0 +1,225 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   FocusFlow design tokens
+   One source of truth. The default Tailwind palette, radii and type scale
+   are reset so only these tokens can be used.
+   ========================================================================== */
+
+@theme static {
+  /* ---- Color: surfaces (dark, ascending elevation) ---- */
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-black: #000;
+  --color-white: #fff;
+
+  --color-canvas: #0a0a0c; /* app background */
+  --color-panel: #0f0f12; /* sidebar, panels */
+  --color-raised: #15151a; /* inputs, popovers, raised rows */
+  --color-hover: #1b1b21; /* hover */
+  --color-active: #222229; /* pressed / selected */
+
+  /* ---- Color: lines ---- */
+  --color-line: rgb(255 255 255 / 0.06);
+  --color-line-strong: rgb(255 255 255 / 0.1);
+  --color-line-focus: rgb(124 131 255 / 0.55);
+
+  /* ---- Color: text ---- */
+  --color-fg: #ededf0;
+  --color-fg-muted: #a0a0ab;
+  --color-fg-subtle: #6a6a75;
+  --color-fg-faint: #4a4a53;
+
+  /* ---- Color: accent + semantic ---- */
+  --color-accent: #7c83ff;
+  --color-accent-hover: #8d93ff;
+  --color-accent-muted: rgb(124 131 255 / 0.14);
+  --color-accent-fg: #0b0b1a;
+
+  --color-positive: #3db88b;
+  --color-positive-muted: rgb(61 184 139 / 0.13);
+  --color-negative: #e5534b;
+  --color-negative-muted: rgb(229 83 75 / 0.13);
+  --color-warning: #d9a441;
+  --color-warning-muted: rgb(217 164 65 / 0.13);
+
+  /* ---- Color: energy types (data viz) ---- */
+  --color-deep: #7c83ff;
+  --color-shallow: #5aa9c9;
+  --color-admin: #8a8a96;
+  --color-event: #3a3a44;
+
+  /* ---- Color: project hues (desaturated, distinguishable) ---- */
+  --color-p-iris: #8b8ff0;
+  --color-p-teal: #4fb3a9;
+  --color-p-amber: #d4a25a;
+  --color-p-rose: #d27a8c;
+  --color-p-sky: #6aa6d8;
+  --color-p-lime: #9bbd5c;
+  --color-p-violet: #b08ad8;
+  --color-p-slate: #8b94a3;
+
+  /* ---- Typography ---- */
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --text-*: initial;
+  --text-2xs: 0.6875rem; /* 11px – labels, axis ticks */
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem; /* 12px – meta, secondary */
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.8125rem; /* 13px – base UI */
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem; /* 14px – emphasized body */
+  --text-base--line-height: 1.25rem;
+  --text-md: 1rem; /* 16px – section titles */
+  --text-md--line-height: 1.5rem;
+  --text-lg: 1.25rem; /* 20px – page titles */
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.5rem; /* 24px – hero metrics (max) */
+  --text-xl--line-height: 2rem;
+
+  --tracking-tight: -0.011em;
+  --tracking-label: 0.04em;
+
+  /* ---- Space: Tailwind's --spacing (0.25rem) = 4px grid ---- */
+  --spacing: 0.25rem;
+
+  /* ---- Radius ---- */
+  --radius-*: initial;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-full: 9999px;
+
+  /* ---- Elevation (popovers & dialogs only) ---- */
+  --shadow-*: initial;
+  --shadow-pop: 0 0 0 1px rgb(0 0 0 / 0.4), 0 8px 24px -4px rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.3);
+  --shadow-dialog: 0 0 0 1px rgb(0 0 0 / 0.5), 0 24px 64px -12px rgb(0 0 0 / 0.7);
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --animate-pop-in: pop-in 160ms var(--ease-out);
+  --animate-fade-in: fade-in 160ms var(--ease-out);
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes shimmer {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
+  }
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-2px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-canvas);
+  }
+
+  body {
+    @apply bg-canvas text-fg font-sans text-sm antialiased;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    letter-spacing: var(--tracking-tight);
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgb(124 131 255 / 0.32);
+  }
+
+  :focus-visible {
+    outline: none;
+  }
+
+  /* Minimal, unobtrusive scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.08) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgb(255 255 255 / 0.08);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(255 255 255 / 0.14);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+@utility eyebrow {
+  font-size: var(--text-2xs);
+  line-height: var(--text-2xs--line-height);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-fg-subtle);
+}
+
+@utility focus-ring {
+  &:focus-visible {
+    box-shadow:
+      0 0 0 1px var(--color-canvas),
+      0 0 0 3px var(--color-line-focus);
+  }
+}
+
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(229 83 75 / 0.28) 0 2px,
+    transparent 2px 6px
+  );
+}

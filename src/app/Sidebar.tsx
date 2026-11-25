@@ -1,0 +1,267 @@
+import { useRef } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router';
+import { motion } from 'motion/react';
+import { ChevronDown, Download, GitBranch, HardDrive, Plus, Upload, Wand2 } from 'lucide-react';
+import { cn } from '@/lib/cn';
+import { formatDuration } from '@/lib/format';
+import { categoryStats, summarize } from '@/domain/stats';
+import { useWorkspace } from '@/hooks/data';
+import { exportWorkspace, importWorkspace } from '@/services/backup';
+import { CategorySwatch } from '@/features/tasks/TaskMeta';
+import { NAV } from './nav';
+import { useUI } from './store';
+import { toast } from './toast';
+import { Tooltip } from '@/ui/Tooltip';
+import { Kbd } from '@/ui/Kbd';
+import { Meter } from '@/ui/Data';
+import { Skeleton } from '@/ui/Feedback';
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, MenuLabel } from '@/ui/Menu';
+import { scenarios } from '@/data/sample';
+
+export function Logo({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden className="shrink-0">
+      <rect width="20" height="20" rx="5" fill="#1d1d24" />
+      <rect x="0.5" y="0.5" width="19" height="19" rx="4.5" fill="none" stroke="rgb(255 255 255 / 0.1)" />
+      <path d="M5.5 6h9M5.5 10h6M5.5 14h3" stroke="var(--color-accent)" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function Sidebar({ collapsed }: { collapsed: boolean }) {
+  const openCreate = useUI((s) => s.openCreate);
+  const setMobileNav = useUI((s) => s.setMobileNav);
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const { tasks, categories, risk, now, loading } = useWorkspace();
+
+  const summary = summarize(tasks, risk, now);
+  const perCategory = categoryStats(tasks, categories, risk);
+  const booked = summary.dueSoonMinutes;
+  const capacity = summary.capacity7d;
+  const badges: Record<string, number | undefined> = {
+    '/tasks': loading ? undefined : summary.openCount,
+    '/simulator': scenarios.length,
+  };
+
+  const onImport = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const n = await importWorkspace(await file.text());
+      toast(`Imported ${n} tasks`);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Import failed', { tone: 'error' });
+    } finally {
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+  return (
+    <nav
+      aria-label="Primary"
+      className={cn('flex h-full flex-col bg-panel', collapsed ? 'w-14 items-center' : 'w-[232px]')}
+    >
+      {/* Workspace */}
+      <div className={cn('flex h-12 shrink-0 items-center', collapsed ? 'justify-center' : 'px-2.5')}>
+        <Menu>
+          <MenuTrigger asChild>
+            <button
+              className={cn(
+                'focus-ring flex h-8 items-center gap-2 rounded-sm transition-colors hover:bg-hover',
+                collapsed ? 'w-8 justify-center' : 'w-full px-1.5',
+              )}
+            >
+              <Logo />
+              {!collapsed && (
+                <>
+                  <span className="flex-1 truncate text-left text-sm font-semibold tracking-[-0.01em]">FocusFlow</span>
+                  <ChevronDown size={13} className="text-fg-subtle" />
+                </>
+              )}
+            </button>
+          </MenuTrigger>
+          <MenuContent className="w-56">
+            <MenuLabel>Local workspace</MenuLabel>
+            <MenuItem
+              icon={Download}
+              onSelect={async () => {
+                const n = await exportWorkspace();
+                toast(`Exported ${n} tasks to JSON`);
+              }}
+            >
+              Export data…
+            </MenuItem>
+            <MenuItem icon={Upload} onSelect={() => fileRef.current?.click()}>
+              Import data…
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem icon={Wand2} onSelect={() => navigate('/design')}>
+              Design system
+            </MenuItem>
+          </MenuContent>
+        </Menu>
+      </div>
+
+      {/* New task */}
+      <div className={cn('shrink-0 pb-3', collapsed ? 'px-0' : 'px-2.5')}>
+        <Tooltip content="New task" shortcut={['C']} side="right" disabled={!collapsed}>
+          <button
+            onClick={() => openCreate()}
+            className={cn(
+              'focus-ring group flex h-8 items-center gap-2 rounded-sm border border-line-strong bg-raised text-sm text-fg-muted',
+              'shadow-[inset_0_1px_0_rgb(255_255_255/0.03)] transition-colors hover:bg-hover hover:text-fg',
+              collapsed ? 'w-8 justify-center' : 'w-full px-2.5',
+            )}
+          >
+            <Plus size={14} strokeWidth={2} />
+            {!collapsed && (
+              <>
+                <span className="flex-1 text-left">New task</span>
+                <Kbd keys={['C']} />
+              </>
+            )}
+          </button>
+        </Tooltip>
+      </div>
+
+      {/* Primary nav */}
+      <ul className={cn('flex shrink-0 flex-col gap-px', collapsed ? 'items-center' : 'px-2.5')}>
+        {NAV.map((item) => {
+          const active = item.to === '/' ? pathname === '/' : pathname.startsWith(item.to);
+          const badge = badges[item.to];
+          return (
+            <li key={item.to} className={collapsed ? '' : 'w-full'}>
+              <Tooltip content={item.label} shortcut={['G', item.key]} side="right" disabled={!collapsed}>
+                <NavLink
+                  to={item.to}
+                  onClick={() => setMobileNav(false)}
+                  className={cn(
+                    'focus-ring relative flex h-7 items-center gap-2.5 rounded-sm text-sm transition-colors duration-100',
+                    collapsed ? 'w-8 justify-center' : 'px-2',
+                    active ? 'text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
+                  )}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="nav-active"
+                      className="absolute inset-0 rounded-sm bg-active shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]"
+                      transition={{ type: 'spring', stiffness: 520, damping: 40 }}
+                    />
+                  )}
+                  <item.icon
+                    size={15}
+                    strokeWidth={1.75}
+                    className={cn('relative shrink-0', active ? 'text-accent' : 'text-fg-subtle')}
+                  />
+                  {!collapsed && (
+                    <>
+                      <span className="relative flex-1 truncate">{item.label}</span>
+                      {badge !== undefined && (
+                        <span className="num relative text-2xs text-fg-subtle">{badge}</span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              </Tooltip>
+            </li>
+          );
+        })}
+      </ul>
+
+      {!collapsed && (
+        <div className="mt-5 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-2.5 pb-3">
+          {/* Scenarios */}
+          <section>
+            <h3 className="eyebrow flex h-6 items-center px-2">Draft scenarios</h3>
+            <ul className="flex flex-col gap-px">
+              {scenarios.map((s) => (
+                <li key={s.id}>
+                  <NavLink
+                    to="/simulator"
+                    className="focus-ring group flex h-7 items-center gap-2 rounded-sm px-2 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+                  >
+                    <GitBranch size={13} strokeWidth={1.75} className="shrink-0 text-fg-subtle" />
+                    <span className="flex-1 truncate">{s.name}</span>
+                    <span
+                      className={cn('num text-2xs', s.lateDelta > 0 ? 'text-negative' : 'text-positive')}
+                      title={`${s.lateDelta > 0 ? '+' : ''}${s.lateDelta} late tasks vs. baseline`}
+                    >
+                      {s.lateDelta > 0 ? '+' : '−'}
+                      {Math.abs(s.lateDelta)} late
+                    </span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Categories */}
+          <section>
+            <h3 className="eyebrow flex h-6 items-center px-2">Categories</h3>
+            <ul className="flex flex-col gap-px">
+              {loading &&
+                Array.from({ length: 4 }, (_, i) => (
+                  <li key={i} className="flex h-7 items-center gap-2.5 px-2">
+                    <Skeleton className="size-2" />
+                    <Skeleton className="h-2.5 flex-1" />
+                  </li>
+                ))}
+              {perCategory.map(({ category, openMinutes, troubleCount }) => (
+                <li key={category.id}>
+                  <NavLink
+                    to={`/tasks?category=${category.id}`}
+                    className="focus-ring flex h-7 items-center gap-2.5 rounded-sm px-2 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+                  >
+                    <CategorySwatch category={category} />
+                    <span className="flex-1 truncate">{category.name}</span>
+                    {troubleCount > 0 && (
+                      <Tooltip content={`${troubleCount} overdue or projected late`} side="right">
+                        <span className="size-1.5 shrink-0 rounded-full bg-negative" />
+                      </Tooltip>
+                    )}
+                    <span className="num text-2xs text-fg-subtle">{openMinutes ? formatDuration(openMinutes, { compact: true }) : '—'}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className={cn('mt-auto shrink-0 border-t border-line', collapsed ? 'w-full py-3' : 'px-4 py-3')}>
+        {collapsed ? (
+          <Tooltip content="Stored locally in this browser" side="right">
+            <div className="flex justify-center text-fg-subtle">
+              <HardDrive size={14} strokeWidth={1.75} />
+            </div>
+          </Tooltip>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-baseline justify-between">
+              <Tooltip content="Work due in the next 7 days vs. working time available" side="top">
+                <span className="text-xs text-fg-muted">Next 7 days</span>
+              </Tooltip>
+              <span className="num text-xs text-fg">
+                {formatDuration(booked, { compact: true })}
+                <span className="text-fg-subtle"> / {formatDuration(capacity, { compact: true })}</span>
+              </span>
+            </div>
+            <Meter value={booked} max={capacity} height={3} color={booked > capacity ? 'var(--color-negative)' : undefined} />
+            <div className="flex items-center gap-1.5 text-2xs text-fg-subtle">
+              <span className="size-1.5 rounded-full bg-positive" />
+              Saved locally · IndexedDB
+            </div>
+          </div>
+        )}
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={(e) => void onImport(e.target.files?.[0])}
+      />
+    </nav>
+  );
+}
