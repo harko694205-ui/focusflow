@@ -19,8 +19,8 @@ export class FocusFlowDB extends Dexie {
   classes!: EntityTable<ClassMeeting, 'id'>;
   meta!: EntityTable<MetaRow, 'key'>;
 
-  /** When false, a freshly created database starts empty (used by tests). */
-  seedOnCreate = true;
+  /** When true, a freshly created database starts with the demo workspace. New users get the first-run setup instead. */
+  seedOnCreate = false;
 
   constructor(name = 'focusflow') {
     super(name);
@@ -59,6 +59,13 @@ export class FocusFlowDB extends Dexie {
       classes: 'id, categoryId',
       blocks: 'id, taskId, start, end, examId, classId',
     });
+
+    // v7 — first-run setup. Workspaces that already exist are set up: they never see it.
+    this.version(7)
+      .stores({})
+      .upgrade(async (tx) => {
+        await tx.table('meta').put({ key: 'onboarded', value: true });
+      });
 
     // Runs exactly once, when the database is first created in this browser.
     this.on('populate', async (tx) => {

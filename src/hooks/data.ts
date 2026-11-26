@@ -157,3 +157,8 @@ export function useExams(): Exam[] | undefined {
 export function useClasses(): ClassMeeting[] | undefined {
   return useLiveQuery(() => db.classes.toArray(), []);
 }
+
+/** Whether the first-run setup is done; undefined while loading. */
+export function useOnboarded(): boolean | undefined {
+  return useLiveQuery(async () => (await db.meta.get('onboarded'))?.value === true, []);
+}

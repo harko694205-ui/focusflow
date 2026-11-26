@@ -224,6 +224,7 @@ export async function importWorkspace(json: string): Promise<number> {
     await db.blocks.bulkAdd(blocks);
     await db.sessions.bulkAdd(sessions);
     await db.meta.put({ key: 'taskSeq', value: tasks.reduce((m, t) => Math.max(m, t.seq), 0) });
+    await db.meta.put({ key: 'onboarded', value: true });
     await resetImportHistory(tasks.filter((t) => t.sourceUid).map((t) => t.sourceUid!));
   });
   return tasks.length;

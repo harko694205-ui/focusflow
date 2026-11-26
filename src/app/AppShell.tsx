@@ -6,6 +6,8 @@ import { isTypingTarget } from '@/lib/hotkeys';
 import { requestPersistentStorage } from '@/db/db';
 import { TaskEditor } from '@/features/tasks/TaskEditor';
 import { QuickCapture } from '@/features/tasks/QuickCapture';
+import { Onboarding } from '@/features/onboarding/Onboarding';
+import { useOnboarded } from '@/hooks/data';
 import { undoLast } from '@/features/tasks/actions';
 import { useTaskView } from '@/features/tasks/viewStore';
 import { Sidebar } from './Sidebar';
@@ -31,6 +33,8 @@ function useShortcuts() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // The first-run setup is its own screen: no global shortcuts behind it.
+      if (document.querySelector('[data-onboarding]')) return;
       const ui = useUI.getState();
       const mod = e.metaKey || e.ctrlKey;
 
@@ -117,6 +121,11 @@ export function AppShell() {
     lastPath.current = location.pathname;
     mainRef.current?.focus({ preventScroll: true });
   }, [location.pathname, pageLabel]);
+
+  // A new browser starts with the first-run setup instead of the app.
+  const onboarded = useOnboarded();
+  if (onboarded === undefined) return <div className="h-dvh bg-canvas" />;
+  if (!onboarded) return <Onboarding />;
 
   return (
     <div className="flex h-dvh overflow-hidden bg-canvas">

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Database, Download, HardDrive, History, ShieldCheck, Trash2, Upload } from 'lucide-react';
+import { Database, Download, HardDrive, History, ShieldCheck, Sparkles, Trash2, Upload } from 'lucide-react';
 import { db, requestPersistentStorage } from '@/db/db';
 import { taskActions } from '@/features/tasks/actions';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/Confirm';
 import { settingsActions } from './actions';
+import { restartOnboarding } from '@/services/onboardingService';
 import { useTerms } from '@/hooks/data';
 
 function useStorage() {
@@ -106,6 +107,11 @@ export function DataSection() {
               e.target.value = '';
             }}
           />
+        </Row>
+        <Row icon={Sparkles} title="Run first-time setup" detail="Walk through the setup again: term, classes, BruinLearn or working hours. It only adds; nothing here is deleted.">
+          <Button variant="secondary" onClick={() => void restartOnboarding()}>
+            Start
+          </Button>
         </Row>
         <Row icon={History} title="Add sample history" detail="Eight weeks of generated finished work and tracked time, so Insights has something to show. Undoable.">
           <Button variant="secondary" onClick={() => void taskActions.addSampleHistory()}>
