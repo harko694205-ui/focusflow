@@ -18,6 +18,7 @@
     { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ],
   "shortcuts": [
+    { "name": "Quick add a task", "short_name": "Add task", "url": "/?add=1", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Focus Mode", "short_name": "Focus", "url": "/focus", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Tasks", "url": "/tasks", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Timeline", "url": "/timeline", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }

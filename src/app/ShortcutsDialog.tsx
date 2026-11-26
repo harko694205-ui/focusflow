@@ -8,7 +8,7 @@ const sections: Array<{ title: string; items: Array<[keys: string[][], label: st
     title: 'Global',
     items: [
       [[[MOD, 'K']], 'Command palette'],
-      [[['C']], 'New task'],
+      [[['C']], 'Quick add a task'],
       [[[MOD, 'Z']], 'Undo last change'],
       [[[MOD, '\\']], 'Toggle sidebar'],
       [[['?']], 'Show shortcuts'],

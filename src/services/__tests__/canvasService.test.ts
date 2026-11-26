@@ -111,6 +111,63 @@ describe('BruinLearn import', () => {
   });
 });
 
+describe('background sync', () => {
+  const FEED_URL = 'https://bruinlearn.ucla.edu/feeds/calendars/user_test.ics';
+  const LATER = NOW + 4 * 60 * 60 * 1000;
+  const extra = (uid: string, start: string, summary: string) => `BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART:${start}\r\nSUMMARY:${summary}\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+  // A week later: one new homework in a matched course, one from a course never seen before.
+  const NEXT = FEED.replace('DTSTART:20261017T065900Z', 'DTSTART:20261018T065900Z').replace(
+    'END:VCALENDAR',
+    extra('event-assignment-601', '20261024T065900Z', 'Homework 4 [COM SCI 31 - Lec 1 - Fall 2026]').replace('END:VCALENDAR', extra('event-assignment-602', '20261025T065900Z', 'Lab 1 [PHYSICS 4AL - Fall 2026]')),
+  );
+
+  async function connected() {
+    const p = await canvas.previewCanvas(FEED, NOW);
+    await canvas.applyCanvasImport(all(p), p.courses, FEED_URL, NOW);
+  }
+
+  it('does nothing without a feed, when switched off, or when synced recently', async () => {
+    expect(await canvas.autoSync(NOW, async () => NEXT)).toBeNull();
+    await connected();
+    expect(await canvas.autoSync(NOW + 60_000, async () => NEXT)).toBeNull();
+    await canvas.setAutoSync(false);
+    expect(await canvas.autoSync(LATER, async () => NEXT)).toBeNull();
+  });
+
+  it('adds new assignments from matched courses and updates due dates; new courses wait', async () => {
+    await connected();
+    const r = (await canvas.autoSync(LATER, async () => NEXT))!;
+    expect(r.result.added.map((t) => t.title)).toEqual(['Homework 4']);
+    expect(r.result.added[0].categoryId).toBe('cs31');
+    expect(r.result.updatedBefore.map((t) => t.title)).toEqual(['Homework 3']);
+    expect(r.result.newCourses).toEqual([]);
+    expect(r.unmatched).toBe(1); // PHYSICS 4AL Lab 1
+    expect(await imported()).toHaveLength(3);
+    expect((await canvas.getCanvasState()).lastSync).toBe(LATER);
+  });
+
+  it('undoing a background sync doesn’t bring the same items back next time', async () => {
+    await connected();
+    const r = (await canvas.autoSync(LATER, async () => NEXT))!;
+    await canvas.undoCanvasImport(r.result, { forget: false });
+    expect(await imported()).toHaveLength(2);
+    const again = (await canvas.autoSync(LATER + 4 * 60 * 60 * 1000, async () => NEXT))!;
+    expect(again.result.added).toHaveLength(0);
+  });
+
+  it('remembers why a sync failed', async () => {
+    await connected();
+    expect(
+      await canvas.autoSync(LATER, async () => {
+        throw new Error('BruinLearn doesn’t recognise that feed link.');
+      }),
+    ).toBeNull();
+    expect((await canvas.getCanvasState()).lastError).toMatch(/recognise/);
+    await canvas.autoSync(LATER * 2, async () => NEXT);
+    expect((await canvas.getCanvasState()).lastError).toBeNull();
+  });
+});
+
 describe('feed proxy', () => {
   const post = (body: unknown) => POST(new Request('http://localhost/api/ics', { method: 'POST', body: JSON.stringify(body) }));
 

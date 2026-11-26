@@ -154,15 +154,35 @@ export interface CanvasItem {
 
 /** A first guess at the work an assignment takes, from its title. Editable in the preview. */
 export function guessWork(title: string): { estimate: Minutes; difficulty: Difficulty; exam: boolean } {
+  const kind = workKind(title);
+  return { ...WORK[kind], exam: kind === 'exam' };
+}
+
+export type WorkKind = 'exam' | 'project' | 'lab' | 'homework' | 'quiz' | 'reading' | 'discussion' | 'other';
+
+/** Typical effort per kind of work — the starting guess before there's history to learn from. */
+export const WORK: Record<WorkKind, { estimate: Minutes; difficulty: Difficulty; label: string }> = {
+  exam: { estimate: 60, difficulty: 3, label: 'exams' },
+  project: { estimate: 240, difficulty: 3, label: 'projects' },
+  lab: { estimate: 120, difficulty: 2, label: 'labs' },
+  homework: { estimate: 120, difficulty: 2, label: 'problem sets' },
+  quiz: { estimate: 30, difficulty: 1, label: 'quizzes' },
+  reading: { estimate: 60, difficulty: 1, label: 'readings' },
+  discussion: { estimate: 30, difficulty: 1, label: 'posts' },
+  other: { estimate: 60, difficulty: 2, label: 'tasks' },
+};
+
+/** What kind of work a title describes: "HW 5", "hw5", "Problem Set 4" → homework. */
+export function workKind(title: string): WorkKind {
   const t = title.toLowerCase();
-  if (/\b(midterm|final exam|final|exam)\b/.test(t) && !/\b(project|paper|essay|report|draft)\b/.test(t)) return { estimate: 60, difficulty: 3, exam: true };
-  if (/\b(project|paper|essay|report|presentation|portfolio)\b/.test(t)) return { estimate: 240, difficulty: 3, exam: false };
-  if (/\b(lab)\b/.test(t)) return { estimate: 120, difficulty: 2, exam: false };
-  if (/\b(hw|homework|problem set|pset|ps\s?\d+|worksheet|assignment)\b/.test(t)) return { estimate: 120, difficulty: 2, exam: false };
-  if (/\b(quiz)\b/.test(t)) return { estimate: 30, difficulty: 1, exam: false };
-  if (/\b(reading|read|chapter|ch\.?\s?\d+)\b/.test(t)) return { estimate: 60, difficulty: 1, exam: false };
-  if (/\b(discussion|post|reply|response|reflection|survey|attendance|participation|check-?in|poll)\b/.test(t)) return { estimate: 30, difficulty: 1, exam: false };
-  return { estimate: 60, difficulty: 2, exam: false };
+  if (/\b(midterm|final exam|final|exam)\b/.test(t) && !/\b(project|paper|essay|report|draft)\b/.test(t)) return 'exam';
+  if (/\b(project|paper|essay|report|presentation|portfolio)\b/.test(t)) return 'project';
+  if (/\blab\s?\d*\b/.test(t)) return 'lab';
+  if (/\b(hw\s?\d*|homework|problem set|pset\s?\d*|ps\s?\d+|worksheet|assignment)\b/.test(t)) return 'homework';
+  if (/\bquiz\s?\d*\b/.test(t)) return 'quiz';
+  if (/\b(reading|read|chapter|ch\.?\s?\d+)\b/.test(t)) return 'reading';
+  if (/\b(discussion|post|reply|response|reflection|survey|attendance|participation|check-?in|poll)\b/.test(t)) return 'discussion';
+  return 'other';
 }
 
 /** Split "Homework 3 [COM SCI 31]" into title and course. */

@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn';
 import { isTypingTarget } from '@/lib/hotkeys';
 import { requestPersistentStorage } from '@/db/db';
 import { TaskEditor } from '@/features/tasks/TaskEditor';
+import { QuickCapture } from '@/features/tasks/QuickCapture';
 import { undoLast } from '@/features/tasks/actions';
 import { useTaskView } from '@/features/tasks/viewStore';
 import { Sidebar } from './Sidebar';
@@ -12,6 +13,7 @@ import { Header } from './Header';
 import { CommandPalette } from './CommandPalette';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { Toaster } from './toast';
+import { CanvasAutoSync } from '@/features/canvas/CanvasAutoSync';
 import { NAV, pageLabel as labelFor } from './nav';
 import { isModalOpen, useUI } from './store';
 
@@ -67,9 +69,10 @@ function useShortcuts() {
         pendingG.current = window.setTimeout(() => (pendingG.current = null), 900);
       } else if (key === 'C') {
         e.preventDefault();
-        // On the Tasks page with a single category filter, pre-select that category.
+        // Quick add; on the Tasks page with a single category filter, that course is the default.
         const cats = useTaskView.getState().filter.categories;
-        ui.openCreate(pathRef.current.startsWith('/tasks') && cats.length === 1 ? { categoryId: cats[0] } : undefined);
+        if (pathRef.current.startsWith('/tasks') && cats.length === 1) ui.setCaptureCourse(cats[0]);
+        ui.setCapture(true);
       } else if (e.key === '?') {
         e.preventDefault();
         ui.setShortcuts(true);
@@ -91,6 +94,16 @@ export function AppShell() {
     void requestPersistentStorage();
   }, []);
   useEffect(() => setMobileNav(false), [location.pathname, setMobileNav]);
+
+  // The "Quick add" Home Screen shortcut opens /?add=1: show quick capture, then tidy the URL.
+  const navigate = useNavigate();
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (!params.has('add')) return;
+    useUI.getState().setCapture(true);
+    params.delete('add');
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+  }, [location.search, location.pathname, navigate]);
 
   // Each page gets a title, and after navigating, focus moves to the new page so keyboard and
   // screen-reader users start there (not on the link they just used).
@@ -179,6 +192,8 @@ export function AppShell() {
       <TaskEditor />
       <ShortcutsDialog />
       <Toaster />
+      <CanvasAutoSync />
+      <QuickCapture />
     </div>
   );
 }

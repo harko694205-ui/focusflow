@@ -27,7 +27,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const terms = useTerms();
   const mode = useProfile().mode;
   const exams = useExams();
-  const openCreate = useUI((s) => s.openCreate);
+  const openCapture = useUI((s) => s.setCapture);
   const setMobileNav = useUI((s) => s.setMobileNav);
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -95,7 +95,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       <div className={cn('shrink-0 pb-3', collapsed ? 'px-0' : 'px-2.5')}>
         <Tooltip content="New task" shortcut={['C']} side="right" disabled={!collapsed}>
           <button
-            onClick={() => openCreate()}
+            onClick={() => openCapture(true)}
             className={cn(
               'focus-ring group flex h-8 items-center gap-2 rounded-sm border border-line-strong bg-raised text-sm text-fg-muted',
               'shadow-[inset_0_1px_0_rgb(255_255_255/0.03)] transition-colors hover:bg-hover hover:text-fg',

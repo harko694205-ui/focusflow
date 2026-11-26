@@ -26,7 +26,7 @@ export function Header() {
   const toggleSidebar = useUI((s) => s.toggleSidebar);
   const setMobileNav = useUI((s) => s.setMobileNav);
   const setPalette = useUI((s) => s.setPalette);
-  const openCreate = useUI((s) => s.openCreate);
+  const openCapture = useUI((s) => s.setCapture);
   const now = useClock();
   const term = useTermStatus(now.getTime());
 
@@ -94,8 +94,8 @@ export function Header() {
         <span className="num text-sm text-fg">{format(now, 'HH:mm')}</span>
       </div>
 
-      <Tooltip content="Create a task" shortcut={['C']}>
-        <Button variant="primary" icon={Plus} onClick={() => openCreate()} className="ml-1">
+      <Tooltip content="Quick add a task" shortcut={['C']}>
+        <Button variant="primary" icon={Plus} onClick={() => openCapture(true)} className="ml-1">
           <span className="hidden sm:inline">New task</span>
         </Button>
       </Tooltip>

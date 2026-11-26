@@ -21,8 +21,11 @@ export interface CanvasState {
   courses: Record<string, ID | 'skip'>;
   /** Every UID ever imported, so assignments you deleted aren't offered as new again. */
   imported: string[];
+  /** Sync in the background when the app opens (on by default). */
+  auto: boolean;
+  /** Why the last background sync failed, shown in Settings; null when it worked. */
+  lastError: string | null;
 }
-
 
 export function readCanvasState(v: unknown): CanvasState {
   const s = (v ?? {}) as Partial<CanvasState>;
@@ -31,7 +34,60 @@ export function readCanvasState(v: unknown): CanvasState {
     lastSync: typeof s.lastSync === 'number' ? s.lastSync : null,
     courses: s.courses && typeof s.courses === 'object' ? s.courses : {},
     imported: Array.isArray(s.imported) ? s.imported.filter((x) => typeof x === 'string') : [],
+    auto: s.auto !== false,
+    lastError: typeof s.lastError === 'string' ? s.lastError : null,
   };
+}
+
+async function patchState(patch: Partial<CanvasState>): Promise<void> {
+  await db.transaction('rw', db.meta, async () => {
+    const row = await db.meta.get(CANVAS_KEY);
+    await db.meta.put({ key: CANVAS_KEY, value: { ...readCanvasState(row?.value), ...patch } });
+  });
+}
+
+export const setAutoSync = (auto: boolean) => patchState({ auto });
+
+/* -------------------------------------------------------------------------- */
+/* Background sync                                                            */
+/* -------------------------------------------------------------------------- */
+
+/** How long a sync stays fresh before opening the app syncs again. */
+export const AUTO_SYNC_EVERY = 3 * 60 * 60 * 1000;
+
+export interface AutoSyncResult {
+  result: ImportResult;
+  /** New upcoming assignments from courses you haven't matched yet (need a look in Settings). */
+  unmatched: number;
+}
+
+/**
+ * Sync without asking: new upcoming assignments from courses you've already matched are added,
+ * changed due dates are updated. Exams, calendar events, past items and anything from a course
+ * you haven't matched are left for the review in Settings. Returns null when it didn't run.
+ */
+export async function autoSync(now = Date.now(), fetcher: (url: string) => Promise<string> = fetchFeed): Promise<AutoSyncResult | null> {
+  const state = await getCanvasState();
+  if (!state.feedUrl || !state.auto) return null;
+  if (state.lastSync && now - state.lastSync < AUTO_SYNC_EVERY) return null;
+  let preview: CanvasPreview;
+  try {
+    preview = await previewCanvas(await fetcher(state.feedUrl), now);
+  } catch (e) {
+    await patchState({ lastError: e instanceof Error ? e.message : 'Sync failed.', lastSync: now });
+    return null;
+  }
+  const matched = new Set(preview.courses.filter((c) => state.courses[c.name] !== undefined && c.target !== 'new').map((c) => c.name));
+  const rows = preview.rows.filter((r) => r.selected && matched.has(r.item.course ?? ''));
+  const unmatched = preview.rows.filter((r) => r.status === 'new' && r.selected && !matched.has(r.item.course ?? '')).length;
+  const result = await applyCanvasImport(
+    rows.map((r) => ({ item: r.item, taskId: r.taskId, estimate: r.item.estimate, difficulty: r.item.difficulty })),
+    preview.courses.filter((c) => matched.has(c.name)),
+    undefined,
+    now,
+  );
+  await patchState({ lastError: null });
+  return { result, unmatched };
 }
 
 export async function getCanvasState(): Promise<CanvasState> {
@@ -184,8 +240,10 @@ export async function applyCanvasImport(choices: ImportChoice[], courses: Previe
     }
 
     const next: CanvasState = {
+      ...state,
       feedUrl: feedUrl === undefined ? state.feedUrl : feedUrl,
       lastSync: now,
+      lastError: null,
       courses: { ...state.courses, ...Object.fromEntries(target) },
       imported: [...new Set([...state.imported, ...added.map((t) => t.sourceUid!)])],
     };
@@ -195,7 +253,11 @@ export async function applyCanvasImport(choices: ImportChoice[], courses: Previe
 }
 
 /** Undo an import: remove what it added (and any schedule/time already attached), restore updates. */
-export async function undoCanvasImport(r: ImportResult): Promise<void> {
+/**
+ * Undo an import. A manual import is forgotten entirely; undoing a background sync keeps its
+ * history (`forget: false`), so the next sync doesn't simply add the same assignments back.
+ */
+export async function undoCanvasImport(r: ImportResult, { forget = true }: { forget?: boolean } = {}): Promise<void> {
   const ids = r.added.map((t) => t.id);
   await db.transaction('rw', [db.tasks, db.categories, db.meta, db.blocks, db.sessions], async () => {
     for (const id of ids) await closeTimer(Date.now(), id);
@@ -205,6 +267,7 @@ export async function undoCanvasImport(r: ImportResult): Promise<void> {
     await db.tasks.bulkDelete(ids);
     await restoreTasks(r.updatedBefore);
     for (const c of r.newCourses) if (!(await db.tasks.where('categoryId').equals(c.id).count())) await db.categories.delete(c.id);
+    if (!forget) return;
     if (r.stateBefore === null) await db.meta.delete(CANVAS_KEY);
     else await db.meta.put({ key: CANVAS_KEY, value: r.stateBefore });
   });

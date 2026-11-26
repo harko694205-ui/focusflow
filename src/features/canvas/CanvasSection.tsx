@@ -4,7 +4,7 @@ import { FileUp, Link2, RefreshCw, Unplug } from 'lucide-react';
 import type { Category } from '@/domain/types';
 import { normalizeFeedUrl } from '@/domain/canvas';
 import { reportError } from '@/app/commands';
-import { fetchFeed, previewCanvas, setFeedUrl, type CanvasPreview } from '@/services/canvasService';
+import { fetchFeed, previewCanvas, setAutoSync, setFeedUrl, type CanvasPreview } from '@/services/canvasService';
 import { Button } from '@/ui/Button';
 import { Input } from '@/ui/Input';
 import { Skeleton } from '@/ui/Feedback';
@@ -59,20 +59,32 @@ export function CanvasSection({ categories }: { categories: Category[] }) {
   return (
     <div className="flex flex-col gap-4">
       {state.feedUrl ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-sm border border-line px-3 py-2.5">
-          <Link2 size={14} className="shrink-0 text-positive" />
-          <div className="flex min-w-[200px] flex-1 flex-col">
-            <span className="text-sm text-fg">Calendar feed connected</span>
-            <span className="text-xs text-fg-subtle">
-              {state.lastSync ? `Last synced ${formatDistanceToNow(state.lastSync, { addSuffix: true })}` : 'Not synced yet'} · new assignments and changed due dates come in when you sync
-            </span>
+        <div className="flex flex-col gap-2.5 rounded-sm border border-line px-3 py-2.5">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link2 size={14} className={state.lastError ? 'shrink-0 text-warning' : 'shrink-0 text-positive'} />
+            <div className="flex min-w-[200px] flex-1 flex-col">
+              <span className="text-sm text-fg">Calendar feed connected</span>
+              <span className="text-xs text-fg-subtle">{state.lastSync ? `Last checked ${formatDistanceToNow(state.lastSync, { addSuffix: true })}` : 'Not synced yet'}</span>
+            </div>
+            <Button variant="secondary" icon={RefreshCw} onClick={() => void sync(state.feedUrl!)} disabled={!!busy} className={busy === 'sync' ? '[&_svg]:animate-spin' : undefined}>
+              {busy === 'sync' ? 'Syncing…' : 'Review & sync'}
+            </Button>
+            <Button variant="ghost" icon={Unplug} onClick={() => void canvasActions.disconnect()} disabled={!!busy}>
+              Disconnect
+            </Button>
           </div>
-          <Button variant="primary" icon={RefreshCw} onClick={() => void sync(state.feedUrl!)} disabled={!!busy} className={busy === 'sync' ? '[&_svg]:animate-spin' : undefined}>
-            {busy === 'sync' ? 'Syncing…' : 'Sync now'}
-          </Button>
-          <Button variant="ghost" icon={Unplug} onClick={() => void canvasActions.disconnect()} disabled={!!busy}>
-            Disconnect
-          </Button>
+          {state.lastError && (
+            <p role="alert" className="text-xs text-warning">
+              Last background sync failed: {state.lastError}
+            </p>
+          )}
+          <label className="flex items-start gap-2 border-t border-line pt-2.5 text-xs">
+            <input type="checkbox" checked={state.auto} onChange={(e) => void setAutoSync(e.target.checked)} className="mt-px size-3.5 shrink-0 accent-[var(--color-accent)]" />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-fg">Sync automatically</span>
+              <span className="text-fg-subtle">When you open FocusFlow (at most every 3 hours), new assignments from courses you’ve matched are added and changed due dates updated. Exams and new courses wait for your review here.</span>
+            </span>
+          </label>
         </div>
       ) : (
         <form
