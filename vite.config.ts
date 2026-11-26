@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { serviceWorker } from './vite-plugin-sw';
+import { devApi } from './vite-plugin-api';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 // `vite preview` serves the same headers as production (vercel.json), so CSP problems show up locally.
@@ -12,7 +13,7 @@ const prodHeaders = Object.fromEntries(vercel.headers.find((h) => h.source === '
 const nm = (names: string) => new RegExp(`[\\/]node_modules[\\/](${names})[\\/]`);
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), serviceWorker()],
+  plugins: [react(), tailwindcss(), serviceWorker(), devApi()],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   server: { port: 5173 },

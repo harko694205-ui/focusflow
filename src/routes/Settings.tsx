@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { AppWindow, CalendarDays, Clock, Crosshair, Database, GraduationCap, Keyboard, Palette, Tags } from 'lucide-react';
+import { AppWindow, CalendarDays, Clock, CloudDownload, Crosshair, Database, GraduationCap, Keyboard, Palette, Tags } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useUI } from '@/app/store';
 import { useFocusSettings, useProfile, useTerms, useWorkspace } from '@/hooks/data';
 import { ModeSection } from '@/features/settings/ModeSection';
 import { ClassSchedule } from '@/features/settings/ClassSchedule';
+import { CanvasSection } from '@/features/canvas/CanvasSection';
 import { FocusSettingsForm } from '@/features/focus/FocusSettingsMenu';
 import { CategoryManager } from '@/features/settings/CategoryManager';
 import { DataSection } from '@/features/settings/DataSection';
@@ -19,6 +20,7 @@ import { Page, PageHeader } from './PageHeader';
 const SECTIONS = [
   { id: 'mode', label: 'Work or school', icon: GraduationCap },
   { id: 'classes', label: 'Class schedule', icon: CalendarDays },
+  { id: 'bruinlearn', label: 'BruinLearn', icon: CloudDownload },
   { id: 'hours', label: 'Working hours', icon: Clock },
   { id: 'focus', label: 'Focus Mode', icon: Crosshair },
   { id: 'categories', label: 'Categories', icon: Tags },
@@ -42,7 +44,7 @@ export function SettingsPage() {
       <div className="flex gap-8">
         <nav aria-label="Settings sections" className="sticky top-0 hidden w-44 shrink-0 self-start lg:block">
           <ul className="flex flex-col gap-px">
-            {SECTIONS.filter((s) => s.id !== 'classes' || profile.mode === 'student').map((s) => (
+            {SECTIONS.filter((s) => (s.id !== 'classes' && s.id !== 'bruinlearn') || profile.mode === 'student').map((s) => (
               <li key={s.id}>
                 <a
                   href={`#${s.id}`}
@@ -76,7 +78,13 @@ export function SettingsPage() {
             </Section>
           )}
 
-          <Section id="hours" title="Working hours" description="Your capacity. Risk, load, the timeline, auto-scheduling, the simulator and insights all plan within these hours.">
+          {profile.mode === 'student' && (
+            <Section id="bruinlearn" title="BruinLearn" description="Bring in assignments and due dates from BruinLearn (Canvas). You review everything before it’s added, and syncing again updates due dates instead of duplicating.">
+              {ws.loading ? <Skeleton className="h-[120px]" /> : <CanvasSection categories={ws.categories} />}
+            </Section>
+          )}
+
+          <Section id="hours"title="Working hours" description="Your capacity. Risk, load, the timeline, auto-scheduling, the simulator and insights all plan within these hours.">
             {ws.loading ? <Skeleton className="h-[320px]" /> : <WorkWeekEditor week={ws.week} />}
           </Section>
 

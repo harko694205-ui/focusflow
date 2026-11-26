@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { CheckCircle2, CornerDownLeft, Download, Keyboard, PanelLeft, Plus, Search, Undo2, Wand2, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, CloudDownload, CornerDownLeft, Download, Keyboard, PanelLeft, Plus, Search, Undo2, Wand2, type LucideIcon } from 'lucide-react';
 import { install, usePwa } from '@/pwa/pwa';
 import { cn } from '@/lib/cn';
 import { Dialog } from '@/ui/Dialog';
@@ -56,6 +56,9 @@ export function CommandPalette() {
       { id: 'shortcuts', group: 'Actions', label: 'Keyboard shortcuts', icon: Keyboard, shortcut: ['?'], run: () => setShortcuts(true) },
       { id: 'sidebar', group: 'Actions', label: 'Toggle sidebar', icon: PanelLeft, shortcut: [MOD, '\\'], run: toggleSidebar },
       { id: 'kit', group: 'Actions', label: 'Open design system', icon: Wand2, run: () => navigate('/design') },
+      ...(mode === 'student'
+        ? [{ id: 'bruinlearn', group: 'Actions' as const, label: 'Sync assignments from BruinLearn', icon: CloudDownload, run: () => { navigate('/settings#bruinlearn'); setTimeout(() => document.getElementById('bruinlearn')?.scrollIntoView({ block: 'start' }), 60); } }]
+        : []),
       ...(canInstall ? [{ id: 'install', group: 'Actions' as const, label: 'Install FocusFlow as an app', icon: Download, run: () => void install() }] : []),
       ...[...(tasks ?? [])]
         // Open tasks first, nearest deadline first.

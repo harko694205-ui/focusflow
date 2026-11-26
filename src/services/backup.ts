@@ -8,6 +8,7 @@ import { WORK_WEEK_KEY } from './settingsService';
 import { FOCUS_SETTINGS_KEY } from './focusService';
 import { PROFILE_KEY } from './settingsService';
 import { readProfile, type Profile } from '@/domain/profile';
+import { resetImportHistory } from './taskService';
 
 const FORMAT = 'focusflow-backup';
 /**
@@ -223,6 +224,7 @@ export async function importWorkspace(json: string): Promise<number> {
     await db.blocks.bulkAdd(blocks);
     await db.sessions.bulkAdd(sessions);
     await db.meta.put({ key: 'taskSeq', value: tasks.reduce((m, t) => Math.max(m, t.seq), 0) });
+    await resetImportHistory(tasks.filter((t) => t.sourceUid).map((t) => t.sourceUid!));
   });
   return tasks.length;
 }

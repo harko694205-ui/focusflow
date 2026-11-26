@@ -80,6 +80,7 @@ export async function createTask(draft: TaskDraft): Promise<Task> {
       completedAt: status === 'done' ? t : null,
       ...(d.dependsOn?.length ? { dependsOn: d.dependsOn } : {}),
       ...(d.examId ? { examId: d.examId } : {}),
+      ...(d.sourceUid ? { sourceUid: d.sourceUid } : {}),
     };
     await db.tasks.add(task);
     return task;
@@ -284,6 +285,16 @@ export async function restoreCategoryEdit(before: Category): Promise<void> {
 /* -------------------------------------------------------------------------- */
 
 /** Remove all tasks and the schedule (categories are kept so the user can start fresh). */
+/**
+ * BruinLearn keeps a list of every assignment it has imported, so ones you delete aren't offered
+ * again. When the task list is wiped or replaced, that list is reset to the tasks that remain.
+ * Must run inside a transaction on db.meta.
+ */
+export async function resetImportHistory(keep: string[] = []): Promise<void> {
+  const row = await db.meta.get('canvas');
+  if (row) await db.meta.put({ key: 'canvas', value: { ...(row.value as object), imported: keep } });
+}
+
 export async function clearTasks(): Promise<void> {
   await db.transaction('rw', [db.tasks, db.blocks, db.sessions, db.meta, db.exams], async () => {
     await db.tasks.clear();
@@ -294,6 +305,7 @@ export async function clearTasks(): Promise<void> {
     await db.meta.delete('activeTimer');
     await db.meta.delete('focusSession');
     await db.meta.put({ key: 'taskSeq', value: 0 });
+    await resetImportHistory();
   });
 }
 
@@ -316,6 +328,7 @@ export async function loadDemoData(): Promise<void> {
     await db.blocks.bulkAdd([...blocks, ...history.blocks]);
     await db.sessions.bulkAdd([...history.sessions, ...buildDemoTracking(tasks, blocks, t)]);
     await db.meta.put({ key: 'taskSeq', value: tasks.length + history.tasks.length });
+    await resetImportHistory();
   });
 }
 

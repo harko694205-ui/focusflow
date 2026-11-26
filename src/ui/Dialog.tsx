@@ -11,13 +11,13 @@ interface DialogProps {
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
-  width?: 'sm' | 'md' | 'lg';
+  width?: 'sm' | 'md' | 'lg' | 'xl';
   /** Hide the title row (e.g. for a command palette). Title is still announced. */
   bare?: boolean;
   className?: string;
 }
 
-const widths = { sm: 'max-w-[400px]', md: 'max-w-[520px]', lg: 'max-w-[640px]' };
+const widths = { sm: 'max-w-[400px]', md: 'max-w-[520px]', lg: 'max-w-[640px]', xl: 'max-w-[760px]' };
 
 export function Dialog({ open, onOpenChange, title, description, children, footer, width = 'md', bare, className }: DialogProps) {
   return (
