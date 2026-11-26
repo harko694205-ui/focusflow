@@ -263,7 +263,10 @@ export function matchCourse(canvasName: string, categories: Pick<Category, 'id' 
   if (code) {
     const same = categories.filter((c) => {
       const k = courseCode(c.name);
-      return k && k.num === code.num && (k.dept === code.dept || k.dept.startsWith(code.dept) || code.dept.startsWith(k.dept));
+      if (!k) return false;
+      // "MUSCLG M82" vs "MUSCLGM82": the same code split differently.
+      if (squash(k.label) === squash(code.label)) return true;
+      return k.num === code.num && (k.dept === code.dept || k.dept.startsWith(code.dept) || code.dept.startsWith(k.dept));
     });
     if (same.length === 1) return same[0].id;
   }

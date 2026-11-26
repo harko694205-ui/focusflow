@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { CalendarOff, MapPin, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { CalendarOff, ClipboardPaste, MapPin, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { CLASS_DAYS, CLASS_KINDS, classRange, dayPattern, expandClass, validateClass, weeklyClassMinutes, type ClassErrors } from '@/domain/classes';
 import type { Term } from '@/domain/term';
@@ -16,11 +16,13 @@ import { Skeleton } from '@/ui/Feedback';
 import { Tooltip } from '@/ui/Tooltip';
 import { classActions } from './classActions';
 import { profileActions } from './actions';
+import { StudyListImport } from './StudyListImport';
 
 /** Weekly classes (Student mode): each becomes event blocks for every meeting of the term. */
 export function ClassSchedule({ categories, term, now }: { categories: Category[]; term: Term | null; now: number }) {
   const classes = useClasses();
   const [editing, setEditing] = useState<ID | 'new' | null>(null);
+  const [pasting, setPasting] = useState(false);
   const byId = new Map(categories.map((c) => [c.id, c]));
   const sorted = useMemo(
     () => [...(classes ?? [])].sort((a, b) => (byId.get(a.categoryId)?.order ?? 99) - (byId.get(b.categoryId)?.order ?? 99) || a.start - b.start),
@@ -76,7 +78,10 @@ export function ClassSchedule({ categories, term, now }: { categories: Category[
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant={sorted.length ? 'secondary' : 'primary'} icon={Plus} onClick={() => setEditing('new')} disabled={!categories.length}>
+          <Button variant={sorted.length ? 'secondary' : 'primary'} icon={ClipboardPaste} onClick={() => setPasting(true)}>
+            Paste from MyUCLA
+          </Button>
+          <Button variant="secondary" icon={Plus} onClick={() => setEditing('new')} disabled={!categories.length}>
             Add a class
           </Button>
           {sorted.length > 0 && (
@@ -93,6 +98,7 @@ export function ClassSchedule({ categories, term, now }: { categories: Category[
       ) : (
         <p className="text-xs text-fg-subtle">Set your term under Work or school so classes stop for finals week and skip holidays.</p>
       )}
+      {pasting && <StudyListImport categories={categories} onClose={() => setPasting(false)} />}
     </div>
   );
 }
